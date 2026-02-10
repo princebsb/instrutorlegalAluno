@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(keytool:*)",
+      "Bash(flutter build:*)",
+      "Bash(cmd.exe /c \"cd /d D:\\\\LEO\\\\flutter\\\\aluno_app && flutter build appbundle --release\")",
+      "Bash(powershell.exe -Command \"cd ''D:\\\\LEO\\\\flutter\\\\aluno_app''; flutter build appbundle --release\")",
+      "Bash(powershell.exe:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
