@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -12,9 +10,6 @@ import 'core/routes/app_router.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/notification_provider.dart';
 import 'core/services/notification_service.dart';
-
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,14 +20,7 @@ void main() async {
   // Inicializar Hive para armazenamento local
   await Hive.initFlutter();
 
-  // Inicializar Firebase (pode falhar no web se não configurado)
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('⚠️ Firebase não inicializado: $e');
-  }
-
-  // Inicializar notificações locais (pode falhar no web)
+  // Inicializar notificações locais
   try {
     await NotificationService.initialize();
   } catch (e) {
