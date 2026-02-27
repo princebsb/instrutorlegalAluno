@@ -20,7 +20,14 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
   String? _authToken;
 
   Future<String?> get authToken async {

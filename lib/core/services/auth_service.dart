@@ -10,7 +10,14 @@ class AuthService {
   AuthService._internal();
 
   final _api = ApiService();
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;

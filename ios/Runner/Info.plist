@@ -60,20 +60,16 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Precisamos da sua localização para encontrar instrutores próximos a você.</string>
 
-	<!-- Firebase Cloud Messaging / Notificações Push -->
-	<key>UIBackgroundModes</key>
+	<!-- URL Schemes para url_launcher -->
+	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>whatsapp</string>
+		<string>waze</string>
+		<string>comgooglemaps</string>
 	</array>
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<false/>
-
-	<!-- Permitir conexões HTTP (se necessário para desenvolvimento) -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 </dict>
 </plist>
