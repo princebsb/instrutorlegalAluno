@@ -1,7 +1,7 @@
 name: instrutor_legal_aluno
 description: Aplicativo oficial do Instrutor Legal para Alunos - Agende aulas de direção com instrutores autônomos credenciados.
 publish_to: 'none'
-version: 1.0.0+3
+version: 1.0.0+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -37,6 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _possuiCnh = false;
   String _categoriaPretendida = 'B';
   bool _isLoading = false;
+  bool _isLoadingCep = false;
 
   // Formatters
   final _telefoneFormatter = MaskTextInputFormatter(
@@ -68,7 +71,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final List<String> _categorias = ['A', 'B', 'AB', 'C', 'D', 'E'];
 
   @override
+  void initState() {
+    super.initState();
+    _cepController.addListener(_onCepChanged);
+  }
+
+  void _onCepChanged() {
+    final cep = _cepFormatter.getUnmaskedText();
+    if (cep.length == 8) {
+      _buscarCep(cep);
+    }
+  }
+
+  Future<void> _buscarCep(String cep) async {
+    setState(() => _isLoadingCep = true);
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://viacep.com.br/ws/$cep/json/'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['erro'] != true) {
+          setState(() {
+            _enderecoController.text = '${data['logradouro'] ?? ''}, ${data['bairro'] ?? ''}';
+            _cidadeController.text = data['localidade'] ?? '';
+            _estadoSelecionado = data['uf'];
+          });
+        }
+      }
+    } catch (e) {
+      // Silencioso - usuário pode preencher manualmente
+    }
+
+    setState(() => _isLoadingCep = false);
+  }
+
+  bool _validarCpf(String cpf) {
+    // Remove caracteres não numéricos
+    cpf = cpf.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (cpf.length != 11) return false;
+
+    // Verifica se todos os dígitos são iguais
+    if (RegExp(r'^(\d)\1{10}$').hasMatch(cpf)) return false;
+
+    // Validação do primeiro dígito verificador
+    int soma = 0;
+    for (int i = 0; i < 9; i++) {
+      soma += int.parse(cpf[i]) * (10 - i);
+    }
+    int resto = soma % 11;
+    int digito1 = resto < 2 ? 0 : 11 - resto;
+
+    if (int.parse(cpf[9]) != digito1) return false;
+
+    // Validação do segundo dígito verificador
+    soma = 0;
+    for (int i = 0; i < 10; i++) {
+      soma += int.parse(cpf[i]) * (11 - i);
+    }
+    resto = soma % 11;
+    int digito2 = resto < 2 ? 0 : 11 - resto;
+
+    if (int.parse(cpf[10]) != digito2) return false;
+
+    return true;
+  }
+
+  @override
   void dispose() {
+    _cepController.removeListener(_onCepChanged);
     _pageController.dispose();
     _nomeController.dispose();
     _emailController.dispose();
@@ -133,16 +208,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return true;
 
       case 1:
-        if (_telefoneFormatter.getUnmaskedText().length < 11) {
-          _showError('Informe um telefone válido');
+        // Telefone, CPF e data de nascimento são opcionais
+        // Validar formato apenas se preenchidos
+        if (_telefoneFormatter.getUnmaskedText().isNotEmpty &&
+            _telefoneFormatter.getUnmaskedText().length < 11) {
+          _showError('Telefone incompleto. Preencha corretamente ou deixe em branco');
           return false;
         }
-        if (_cpfFormatter.getUnmaskedText().length < 11) {
-          _showError('Informe um CPF válido');
-          return false;
+        final cpf = _cpfFormatter.getUnmaskedText();
+        if (cpf.isNotEmpty) {
+          if (cpf.length < 11) {
+            _showError('CPF incompleto. Preencha corretamente ou deixe em branco');
+            return false;
+          }
+          if (!_validarCpf(cpf)) {
+            _showError('CPF inválido. Verifique os dígitos');
+            return false;
+          }
         }
-        if (_dataNascimentoController.text.length < 10) {
-          _showError('Informe sua data de nascimento');
+        if (_dataNascimentoController.text.isNotEmpty &&
+            _dataNascimentoController.text.length < 10) {
+          _showError('Data incompleta. Preencha corretamente ou deixe em branco');
           return false;
         }
         return true;
@@ -176,7 +262,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  String _formatDataNascimento() {
+  String? _formatDataNascimento() {
+    if (_dataNascimentoController.text.isEmpty) {
+      return null;
+    }
     final parts = _dataNascimentoController.text.split('/');
     if (parts.length == 3) {
       return '${parts[2]}-${parts[1]}-${parts[0]}';
@@ -188,13 +277,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
+    final telefone = _telefoneFormatter.getUnmaskedText();
+    final cpf = _cpfFormatter.getUnmaskedText();
+
     final success = await authProvider.register(
       nomeCompleto: _nomeController.text.trim(),
       email: _emailController.text.trim(),
       senha: _senhaController.text,
-      telefone: _telefoneFormatter.getUnmaskedText(),
+      telefone: telefone.isNotEmpty ? telefone : null,
       dataNascimento: _formatDataNascimento(),
-      cpf: _cpfFormatter.getUnmaskedText(),
+      cpf: cpf.isNotEmpty ? cpf : null,
       cep: _cepFormatter.getUnmaskedText(),
       endereco: _enderecoController.text.trim(),
       cidade: _cidadeController.text.trim(),
@@ -385,7 +477,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 24),
 
           CustomTextField(
-            label: 'Telefone',
+            label: 'Telefone (opcional)',
             hint: '(00) 00000-0000',
             controller: _telefoneController,
             keyboardType: TextInputType.phone,
@@ -397,7 +489,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 16),
 
           CustomTextField(
-            label: 'CPF',
+            label: 'CPF (opcional)',
             hint: '000.000.000-00',
             controller: _cpfController,
             keyboardType: TextInputType.number,
@@ -409,7 +501,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 16),
 
           CustomTextField(
-            label: 'Data de Nascimento',
+            label: 'Data de Nascimento (opcional)',
             hint: 'DD/MM/AAAA',
             controller: _dataNascimentoController,
             keyboardType: TextInputType.number,
@@ -446,6 +538,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
             prefixIcon: const Icon(Icons.location_on_outlined),
+            suffixIcon: _isLoadingCep
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
             inputFormatters: [_cepFormatter],
           ),
 

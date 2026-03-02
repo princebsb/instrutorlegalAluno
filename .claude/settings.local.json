@@ -7,7 +7,15 @@
       "Bash(powershell.exe -Command \"cd ''D:\\\\LEO\\\\flutter\\\\aluno_app''; flutter build appbundle --release\")",
       "Bash(powershell.exe:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nVersão inicial do app Instrutor Legal Aluno\n\n- App Flutter para alunos agendarem aulas de direção\n- Configuração Android completa \\(Bundle ID: br.com.instrutorlegal.aluno\\)\n- Configuração iOS com permissões e Firebase\n- Funcionalidades: login, dashboard, agendar aulas, buscar instrutores,\n  mensagens, progresso, pagamentos e configurações\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(ls -la \"D:\\\\LEO\\\\flutter\\\\aluno_app\\\\ios\"\" 2>/dev/null || dir \"D:LEOflutteraluno_appios \")",
+      "Bash(dir:*)",
+      "Bash(git remote set-url:*)"
     ]
   }
 }
