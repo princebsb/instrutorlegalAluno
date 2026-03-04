@@ -1,6 +1,5 @@
 import 'dart:ui' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -108,8 +107,14 @@ class NotificationService {
   }
 
   static Future<bool> requestPermission() async {
-    final status = await Permission.notification.request();
-    return status.isGranted;
+    final androidPlugin = _notifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      final granted = await androidPlugin.requestNotificationsPermission();
+      return granted ?? false;
+    }
+    return true;
   }
 
   static Future<void> cancelAll() async {
