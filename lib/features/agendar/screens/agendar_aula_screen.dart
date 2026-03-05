@@ -39,13 +39,20 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
   @override
   void initState() {
     super.initState();
+    // Listener para atualizar o estado do botão quando o texto muda
+    _localController.addListener(_onFieldChanged);
     if (widget.instrutorId != null) {
       _loadInstrutor(widget.instrutorId!);
     }
   }
 
+  void _onFieldChanged() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    _localController.removeListener(_onFieldChanged);
     _localController.dispose();
     _observacoesController.dispose();
     super.dispose();
@@ -58,10 +65,10 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
         _instrutorSelecionado = response;
       });
     } catch (e) {
-      // Fallback
+      // Fallback - usa o id passado como user_id (que deve ser UUID)
       setState(() {
         _instrutorSelecionado = {
-          'id': id,
+          'user_id': id,
           'nome': widget.instrutorNome ?? 'Instrutor',
           'valor_aula': 120.0,
         };
@@ -154,11 +161,32 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
         _horarioSelecionado!.minute,
       );
 
+      // Busca o UUID do instrutor se ainda não temos
+      String? instrutorUuid = _instrutorSelecionado!['user_id']
+          ?? _instrutorSelecionado!['uuid']
+          ?? _instrutorSelecionado!['instrutor_id'];
+
+      // Se não tem UUID, busca os detalhes completos do instrutor
+      if (instrutorUuid == null) {
+        final instrutorId = _instrutorSelecionado!['id'];
+        final detalhes = await _api.get(
+          ApiEndpoints.instrutor(instrutorId.toString()),
+          requiresAuth: true,
+        );
+        instrutorUuid = detalhes['user_id']?.toString()
+            ?? detalhes['uuid']?.toString()
+            ?? detalhes['id']?.toString();
+
+        if (instrutorUuid == null) {
+          throw Exception('Não foi possível obter o ID do instrutor. Campos: ${detalhes.keys.toList()}');
+        }
+      }
+
       await _api.post(
         ApiEndpoints.aulas,
         body: {
           'aluno_id': user.id,
-          'instrutor_id': _instrutorSelecionado!['id'],
+          'instrutor_id': instrutorUuid,
           'data_hora': dataHora.toIso8601String(),
           'duracao_minutos': 50,
           'categoria': user.categoriaPretendida ?? 'B',
