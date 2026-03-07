@@ -131,36 +131,38 @@ class AuthService {
     String? email,
     String? telefone,
     String? endereco,
+    String? bairro,
     String? cep,
     String? cidade,
     String? estado,
     String? cpf,
     String? dataNascimento,
-    String? numero,
-    String? complemento,
-    String? bairro,
   }) async {
     if (_currentUser == null) throw ApiException('Usuário não autenticado');
 
+    // Helper para converter string vazia para null
+    String? emptyToNull(String? value) =>
+        (value == null || value.trim().isEmpty) ? null : value.trim();
+
+    final body = <String, dynamic>{};
+    if (nomeCompleto != null && nomeCompleto.isNotEmpty) body['nome_completo'] = nomeCompleto;
+    if (email != null && email.isNotEmpty) body['email'] = email;
+    if (telefone != null && telefone.isNotEmpty) body['telefone'] = telefone;
+    if (endereco != null) body['endereco'] = emptyToNull(endereco);
+    if (bairro != null) body['bairro'] = emptyToNull(bairro);
+    if (cep != null && cep.isNotEmpty) body['cep'] = cep;
+    if (cidade != null && cidade.isNotEmpty) body['cidade'] = cidade;
+    if (estado != null && estado.isNotEmpty) body['estado'] = estado;
+    if (cpf != null && cpf.isNotEmpty) body['cpf'] = cpf;
+    if (dataNascimento != null && dataNascimento.isNotEmpty) body['data_nascimento'] = dataNascimento;
+
     final response = await _api.put(
       ApiEndpoints.usuario(_currentUser!.id),
-      body: {
-        if (nomeCompleto != null) 'nome_completo': nomeCompleto,
-        if (email != null) 'email': email,
-        if (telefone != null) 'telefone': telefone,
-        if (endereco != null) 'endereco': endereco,
-        if (cep != null) 'cep': cep,
-        if (cidade != null) 'cidade': cidade,
-        if (estado != null) 'estado': estado,
-        if (cpf != null) 'cpf': cpf,
-        if (dataNascimento != null) 'data_nascimento': dataNascimento,
-        if (numero != null) 'numero': numero,
-        if (complemento != null) 'complemento': complemento,
-        if (bairro != null) 'bairro': bairro,
-      },
+      body: body,
     );
 
-    final updatedUser = UserModel.fromJson(response);
+    final userData = response['usuario'] ?? response;
+    final updatedUser = UserModel.fromJson(userData);
     await _storage.write(
       key: AppConstants.userDataKey,
       value: jsonEncode(updatedUser.toJson()),
@@ -174,7 +176,8 @@ class AuthService {
     if (_currentUser == null) throw ApiException('Usuário não autenticado');
 
     final response = await _api.get(ApiEndpoints.usuario(_currentUser!.id));
-    final user = UserModel.fromJson(response);
+    final userData = response['usuario'] ?? response;
+    final user = UserModel.fromJson(userData);
 
     await _storage.write(
       key: AppConstants.userDataKey,

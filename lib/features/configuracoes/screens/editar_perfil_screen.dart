@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -25,14 +27,13 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late TextEditingController _dataNascimentoController;
   late TextEditingController _cepController;
   late TextEditingController _enderecoController;
-  late TextEditingController _numeroController;
-  late TextEditingController _complementoController;
   late TextEditingController _bairroController;
   late TextEditingController _cidadeController;
   late TextEditingController _estadoController;
 
   bool _isLoading = false;
   bool _hasChanges = false;
+  bool _isLoadingCep = false;
 
   final _phoneMask = MaskTextInputFormatter(
     mask: '(##) #####-####',
@@ -57,22 +58,18 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().user;
 
-    _nomeController = TextEditingController(text: user?.nomeCompleto ?? '');
-    _emailController = TextEditingController(text: user?.email ?? '');
-    _telefoneController = TextEditingController(text: user?.telefone ?? '');
-    _cpfController = TextEditingController(text: user?.cpf ?? '');
-    _dataNascimentoController =
-        TextEditingController(text: user?.dataNascimento ?? '');
-    _cepController = TextEditingController(text: user?.cep ?? '');
-    _enderecoController = TextEditingController(text: user?.endereco ?? '');
-    _numeroController = TextEditingController(text: user?.numero ?? '');
-    _complementoController =
-        TextEditingController(text: user?.complemento ?? '');
-    _bairroController = TextEditingController(text: user?.bairro ?? '');
-    _cidadeController = TextEditingController(text: user?.cidade ?? '');
-    _estadoController = TextEditingController(text: user?.estado ?? '');
+    // Inicializa controllers vazios
+    _nomeController = TextEditingController();
+    _emailController = TextEditingController();
+    _telefoneController = TextEditingController();
+    _cpfController = TextEditingController();
+    _dataNascimentoController = TextEditingController();
+    _cepController = TextEditingController();
+    _enderecoController = TextEditingController();
+    _bairroController = TextEditingController();
+    _cidadeController = TextEditingController();
+    _estadoController = TextEditingController();
 
     // Listen for changes
     for (var controller in [
@@ -82,14 +79,52 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       _dataNascimentoController,
       _cepController,
       _enderecoController,
-      _numeroController,
-      _complementoController,
       _bairroController,
       _cidadeController,
       _estadoController,
     ]) {
       controller.addListener(_onFieldChanged);
     }
+
+    // Listener específico para buscar CEP
+    _cepController.addListener(_onCepChanged);
+
+    // Carrega dados atualizados do servidor
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Busca dados atualizados do servidor
+      await context.read<AuthProvider>().refreshUser();
+    } catch (e) {
+      // Ignora erro, usa dados locais
+    }
+
+    final user = context.read<AuthProvider>().user;
+    if (user != null) {
+      _nomeController.text = user.nomeCompleto;
+      _emailController.text = user.email;
+      // Usar valores sem formatação para que as máscaras processem corretamente
+      final telefoneRaw = user.telefone?.replaceAll(RegExp(r'\D'), '') ?? '';
+      final cpfRaw = user.cpf?.replaceAll(RegExp(r'\D'), '') ?? '';
+      final cepRaw = user.cep?.replaceAll(RegExp(r'\D'), '') ?? '';
+      _telefoneController.text = _phoneMask.maskText(telefoneRaw);
+      _cpfController.text = _cpfMask.maskText(cpfRaw);
+      _dataNascimentoController.text = user.dataNascimento ?? '';
+      _cepController.text = _cepMask.maskText(cepRaw);
+      _enderecoController.text = user.endereco ?? '';
+      _bairroController.text = user.bairro ?? '';
+      _cidadeController.text = user.cidade ?? '';
+      _estadoController.text = user.estado ?? '';
+    }
+
+    setState(() {
+      _isLoading = false;
+      _hasChanges = false; // Reset após carregar
+    });
   }
 
   void _onFieldChanged() {
@@ -98,8 +133,93 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     }
   }
 
+  void _onCepChanged() {
+    final cep = _cepController.text.replaceAll(RegExp(r'\D'), '');
+    if (cep.length == 8) {
+      _buscarCep(cep);
+    }
+  }
+
+  bool _validarCpf(String cpf) {
+    // Remove caracteres não numéricos
+    cpf = cpf.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Verifica se tem 11 dígitos
+    if (cpf.length != 11) return false;
+
+    // Verifica se todos os dígitos são iguais
+    if (RegExp(r'^(\d)\1*$').hasMatch(cpf)) return false;
+
+    // Calcula o primeiro dígito verificador
+    int soma = 0;
+    for (int i = 0; i < 9; i++) {
+      soma += int.parse(cpf[i]) * (10 - i);
+    }
+    int resto = soma % 11;
+    int digito1 = resto < 2 ? 0 : 11 - resto;
+
+    // Verifica o primeiro dígito
+    if (int.parse(cpf[9]) != digito1) return false;
+
+    // Calcula o segundo dígito verificador
+    soma = 0;
+    for (int i = 0; i < 10; i++) {
+      soma += int.parse(cpf[i]) * (11 - i);
+    }
+    resto = soma % 11;
+    int digito2 = resto < 2 ? 0 : 11 - resto;
+
+    // Verifica o segundo dígito
+    if (int.parse(cpf[10]) != digito2) return false;
+
+    return true;
+  }
+
+  Future<void> _buscarCep(String cep) async {
+    if (_isLoadingCep) return;
+
+    setState(() => _isLoadingCep = true);
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://brasilapi.com.br/api/cep/v1/$cep'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _enderecoController.text = data['street'] ?? '';
+          _bairroController.text = data['neighborhood'] ?? '';
+          _cidadeController.text = data['city'] ?? '';
+          _estadoController.text = data['state'] ?? '';
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('CEP não encontrado'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao buscar CEP'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoadingCep = false);
+    }
+  }
+
   @override
   void dispose() {
+    _cepController.removeListener(_onCepChanged);
     _nomeController.dispose();
     _emailController.dispose();
     _telefoneController.dispose();
@@ -107,8 +227,6 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     _dataNascimentoController.dispose();
     _cepController.dispose();
     _enderecoController.dispose();
-    _numeroController.dispose();
-    _complementoController.dispose();
     _bairroController.dispose();
     _cidadeController.dispose();
     _estadoController.dispose();
@@ -123,13 +241,11 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.updateProfile({
       'nome_completo': _nomeController.text.trim(),
-      'telefone': _phoneMask.getUnmaskedText(),
-      'cpf': _cpfMask.getUnmaskedText(),
+      'telefone': _telefoneController.text.replaceAll(RegExp(r'\D'), ''),
+      'cpf': _cpfController.text.replaceAll(RegExp(r'\D'), ''),
       'data_nascimento': _dataNascimentoController.text.trim(),
-      'cep': _cepMask.getUnmaskedText(),
+      'cep': _cepController.text.replaceAll(RegExp(r'\D'), ''),
       'endereco': _enderecoController.text.trim(),
-      'numero': _numeroController.text.trim(),
-      'complemento': _complementoController.text.trim(),
       'bairro': _bairroController.text.trim(),
       'cidade': _cidadeController.text.trim(),
       'estado': _estadoController.text.trim(),
@@ -320,7 +436,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Informe seu telefone';
                     }
-                    if (_phoneMask.getUnmaskedText().length < 11) {
+                    final digits = value.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 11) {
                       return 'Telefone inválido';
                     }
                     return null;
@@ -329,45 +446,43 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
                 const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomTextField(
-                        label: 'CPF',
-                        controller: _cpfController,
-                        prefixIcon: const Icon(Icons.badge_outlined),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_cpfMask],
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Informe o CPF';
-                          }
-                          if (_cpfMask.getUnmaskedText().length < 11) {
-                            return 'CPF inválido';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: CustomTextField(
-                        label: 'Data de Nascimento',
-                        controller: _dataNascimentoController,
-                        prefixIcon: const Icon(Icons.cake_outlined),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_dateMask],
-                        hint: 'DD/MM/AAAA',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Informe a data';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
+                CustomTextField(
+                  label: 'CPF',
+                  controller: _cpfController,
+                  prefixIcon: const Icon(Icons.badge_outlined),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_cpfMask],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Informe o CPF';
+                    }
+                    final cpf = value.replaceAll(RegExp(r'\D'), '');
+                    if (cpf.length < 11) {
+                      return 'CPF incompleto';
+                    }
+                    if (!_validarCpf(cpf)) {
+                      return 'CPF inválido';
+                    }
+                    return null;
+                  },
                 ).animate().fadeIn(delay: 250.ms),
+
+                const SizedBox(height: 16),
+
+                CustomTextField(
+                  label: 'Data de Nascimento',
+                  controller: _dataNascimentoController,
+                  prefixIcon: const Icon(Icons.cake_outlined),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_dateMask],
+                  hint: 'DD/MM/AAAA',
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Informe a data';
+                    }
+                    return null;
+                  },
+                ).animate().fadeIn(delay: 300.ms),
 
                 const SizedBox(height: 32),
 
@@ -383,6 +498,16 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                         label: 'CEP',
                         controller: _cepController,
                         prefixIcon: const Icon(Icons.location_on_outlined),
+                        suffixIcon: _isLoadingCep
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : null,
                         keyboardType: TextInputType.number,
                         inputFormatters: [_cepMask],
                         validator: (value) {
@@ -438,45 +563,16 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
                 const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: CustomTextField(
-                        label: 'Endereço',
-                        controller: _enderecoController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Informe o endereço';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: CustomTextField(
-                        label: 'Nº',
-                        controller: _numeroController,
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Nº';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ).animate().fadeIn(delay: 450.ms),
-
-                const SizedBox(height: 16),
-
                 CustomTextField(
-                  label: 'Complemento',
-                  controller: _complementoController,
-                  hint: 'Apartamento, bloco, etc. (opcional)',
-                ).animate().fadeIn(delay: 500.ms),
+                  label: 'Endereço',
+                  controller: _enderecoController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Informe o endereço';
+                    }
+                    return null;
+                  },
+                ).animate().fadeIn(delay: 450.ms),
 
                 const SizedBox(height: 32),
 

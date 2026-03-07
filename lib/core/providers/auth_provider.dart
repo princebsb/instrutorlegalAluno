@@ -163,14 +163,12 @@ class AuthProvider extends ChangeNotifier {
         email: data['email'],
         telefone: data['telefone'],
         endereco: data['endereco'],
+        bairro: data['bairro'],
         cep: data['cep'],
         cidade: data['cidade'],
         estado: data['estado'],
         cpf: data['cpf'],
         dataNascimento: data['data_nascimento'],
-        numero: data['numero'],
-        complemento: data['complemento'],
-        bairro: data['bairro'],
       );
       notifyListeners();
       return true;

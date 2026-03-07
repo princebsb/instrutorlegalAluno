@@ -26,6 +26,7 @@ class CustomTextField extends StatefulWidget {
   final EdgeInsets? contentPadding;
   final bool autofocus;
   final AutovalidateMode? autovalidateMode;
+  final TextStyle? labelStyle;
 
   const CustomTextField({
     super.key,
@@ -52,6 +53,7 @@ class CustomTextField extends StatefulWidget {
     this.contentPadding,
     this.autofocus = false,
     this.autovalidateMode,
+    this.labelStyle,
   });
 
   @override
@@ -76,11 +78,12 @@ class _CustomTextFieldState extends State<CustomTextField> {
         if (widget.label != null) ...[
           Text(
             widget.label!,
-            style: const TextStyle(
+            style: widget.labelStyle ?? const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
               color: AppColors.textPrimary,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
         ],

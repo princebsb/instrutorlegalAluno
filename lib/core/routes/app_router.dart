@@ -98,9 +98,12 @@ class AppRouter {
       ),
       GoRoute(
         path: AppRoutes.dashboard,
-        builder: (context, state) => const _ExitAppWrapper(
-          child: DashboardScreen(),
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return _ExitAppWrapper(
+            child: DashboardScreen(key: ValueKey(extra?['refresh'] ?? 0)),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.agendarAula,

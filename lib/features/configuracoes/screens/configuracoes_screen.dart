@@ -137,8 +137,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen>
           _buildInfoCard(
             icon: Icons.location_on_outlined,
             title: 'Endereço',
-            subtitle: '${user?.cidade ?? 'Cidade'}, ${user?.estado ?? 'UF'}',
-            onTap: () => context.push(AppRoutes.editarPerfil),
+            subtitle: _buildEnderecoCompleto(user),
           ),
           _buildInfoCard(
             icon: Icons.directions_car_outlined,
@@ -488,5 +487,30 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen>
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  String _buildEnderecoCompleto(user) {
+    if (user == null) return 'Não informado';
+
+    final partes = <String>[];
+
+    if (user.endereco != null && user.endereco!.isNotEmpty) {
+      partes.add(user.endereco!);
+    }
+    if (user.bairro != null && user.bairro!.isNotEmpty) {
+      partes.add(user.bairro!);
+    }
+    if (user.cidade != null && user.cidade!.isNotEmpty) {
+      String cidadeEstado = user.cidade!;
+      if (user.estado != null && user.estado!.isNotEmpty) {
+        cidadeEstado += '/${user.estado}';
+      }
+      partes.add(cidadeEstado);
+    }
+    if (user.cep != null && user.cep!.isNotEmpty) {
+      partes.add('CEP: ${user.cep}');
+    }
+
+    return partes.isNotEmpty ? partes.join(', ') : 'Não informado';
   }
 }

@@ -2,6 +2,9 @@ class AppConstants {
   AppConstants._();
 
   // API
+  // Produção: https://instrutorlegal.org
+  // Local Android Emulator: http://10.0.2.2:3000
+  // Local dispositivo físico: http://SEU_IP:3000
   static const String baseUrl = 'https://instrutorlegal.org';
   static const String apiUrl = '$baseUrl/api';
   static const Duration apiTimeout = Duration(seconds: 30);

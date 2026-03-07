@@ -20,9 +20,10 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   final _api = ApiService();
   bool _isLoading = true;
+  bool _hasLoadedOnce = false;
 
   // Dashboard data
   Map<String, dynamic> _estatisticas = {
@@ -38,8 +39,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboard();
     _startNotificationPolling();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Recarrega quando o app volta ao foco
+    if (state == AppLifecycleState.resumed && _hasLoadedOnce) {
+      _loadDashboard();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recarrega quando a tela é exibida novamente (apenas após primeira carga)
+    if (_hasLoadedOnce) {
+      _loadDashboard();
+    }
   }
 
   void _startNotificationPolling() {
@@ -76,8 +101,254 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       // Usar dados mock
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _hasLoadedOnce = true;
+      });
     }
+  }
+
+  Future<void> _confirmarCancelamento(Map<String, dynamic> aula) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar Aula'),
+        content: const Text('Tem certeza que deseja cancelar esta aula?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Não'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Sim, cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      try {
+        await _api.patch(
+          '${ApiEndpoints.aula(aula['id'].toString())}/cancelar',
+          body: {'motivo': 'Cancelado pelo aluno'},
+        );
+
+        if (mounted) {
+          Navigator.pop(context); // Fecha o bottom sheet
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aula cancelada com sucesso'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          _loadDashboard(); // Recarrega os dados
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao cancelar aula: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _mostrarDetalhesAula(Map<String, dynamic> aula) {
+    final dataHora = DateTime.tryParse(aula['data_hora'] ?? '') ?? DateTime.now();
+    final status = aula['status']?.toString() ?? 'agendada';
+    final valor = double.tryParse(aula['valor']?.toString() ?? '') ?? 0.0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.gray300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Título
+            const Text(
+              'Detalhes da Aula',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: status == 'confirmada'
+                    ? AppColors.success.withOpacity(0.1)
+                    : AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                status == 'confirmada' ? 'Confirmada' : 'Aguardando confirmação',
+                style: TextStyle(
+                  color: status == 'confirmada' ? AppColors.success : AppColors.warning,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Instrutor
+            _buildDetalheItem(
+              icon: Icons.person,
+              label: 'Instrutor',
+              value: aula['instrutor_nome']?.toString() ?? 'Não informado',
+            ),
+
+            // Data e Hora
+            _buildDetalheItem(
+              icon: Icons.calendar_today,
+              label: 'Data',
+              value: DateFormat('EEEE, dd/MM/yyyy', 'pt_BR').format(dataHora),
+            ),
+            _buildDetalheItem(
+              icon: Icons.access_time,
+              label: 'Horário',
+              value: DateFormat('HH:mm').format(dataHora),
+            ),
+
+            // Local
+            if (aula['local_partida'] != null)
+              _buildDetalheItem(
+                icon: Icons.location_on,
+                label: 'Local de partida',
+                value: aula['local_partida'].toString(),
+              ),
+
+            // Valor
+            _buildDetalheItem(
+              icon: Icons.attach_money,
+              label: 'Valor',
+              value: 'R\$ ${valor.toStringAsFixed(2)}',
+            ),
+
+            // Telefone do instrutor
+            if (aula['instrutor_telefone'] != null)
+              _buildDetalheItem(
+                icon: Icons.phone,
+                label: 'Telefone',
+                value: aula['instrutor_telefone'].toString(),
+              ),
+
+            const SizedBox(height: 24),
+
+            // Botões
+            Row(
+              children: [
+                // Botão cancelar
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _confirmarCancelamento(aula),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Cancelar Aula'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Botão fechar
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Fechar'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetalheItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primarySurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.gray500,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -511,7 +782,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             itemBuilder: (context, index) {
               final aula = _proximasAulas[index];
               return GestureDetector(
-                onTap: () => context.push(AppRoutes.agendarAula),
+                onTap: () => _mostrarDetalhesAula(aula),
                 child: _buildAulaCard(aula),
               );
             },

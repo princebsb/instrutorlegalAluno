@@ -133,14 +133,31 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
       _horarioSelecionado != null &&
       _localController.text.isNotEmpty;
 
+  void _mostrarErro(String mensagem) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
   Future<void> _handleAgendar() async {
-    if (!_canSubmit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Preencha todos os campos obrigatórios'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+    // Verifica cada campo e mostra mensagem específica
+    if (_instrutorSelecionado == null) {
+      _mostrarErro('Selecione um instrutor');
+      return;
+    }
+    if (_dataSelecionada == null) {
+      _mostrarErro('Selecione a data da aula');
+      return;
+    }
+    if (_horarioSelecionado == null) {
+      _mostrarErro('Selecione o horário da aula');
+      return;
+    }
+    if (_localController.text.trim().isEmpty) {
+      _mostrarErro('Informe o local de partida');
       return;
     }
 
@@ -153,7 +170,8 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
     }
 
     try {
-      final dataHora = DateTime(
+      // Cria a data/hora local
+      final dataHoraLocal = DateTime(
         _dataSelecionada!.year,
         _dataSelecionada!.month,
         _dataSelecionada!.day,
@@ -161,40 +179,31 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
         _horarioSelecionado!.minute,
       );
 
-      // Busca o UUID do instrutor se ainda não temos
-      String? instrutorUuid = _instrutorSelecionado!['user_id']
-          ?? _instrutorSelecionado!['uuid']
-          ?? _instrutorSelecionado!['instrutor_id'];
+      // Formata manualmente para preservar a hora exata (sem conversão de fuso)
+      final dataHoraFormatada = '${dataHoraLocal.year}-'
+          '${dataHoraLocal.month.toString().padLeft(2, '0')}-'
+          '${dataHoraLocal.day.toString().padLeft(2, '0')}T'
+          '${dataHoraLocal.hour.toString().padLeft(2, '0')}:'
+          '${dataHoraLocal.minute.toString().padLeft(2, '0')}:00';
 
-      // Se não tem UUID, busca os detalhes completos do instrutor
-      if (instrutorUuid == null) {
-        final instrutorId = _instrutorSelecionado!['id'];
-        final detalhes = await _api.get(
-          ApiEndpoints.instrutor(instrutorId.toString()),
-          requiresAuth: true,
-        );
-        instrutorUuid = detalhes['user_id']?.toString()
-            ?? detalhes['uuid']?.toString()
-            ?? detalhes['id']?.toString();
-
-        if (instrutorUuid == null) {
-          throw Exception('Não foi possível obter o ID do instrutor. Campos: ${detalhes.keys.toList()}');
-        }
-      }
+      // Usa o user_id se disponível, senão usa o id
+      final instrutorId = _instrutorSelecionado!['user_id']?.toString()
+          ?? _instrutorSelecionado!['uuid']?.toString()
+          ?? _instrutorSelecionado!['id']?.toString();
 
       await _api.post(
         ApiEndpoints.aulas,
         body: {
-          'aluno_id': user.id,
-          'instrutor_id': instrutorUuid,
-          'data_hora': dataHora.toIso8601String(),
+          'aluno_id': user.alunoId ?? user.id,
+          'instrutor_id': instrutorId,
+          'data_hora': dataHoraFormatada,
           'duracao_minutos': 50,
           'categoria': user.categoriaPretendida ?? 'B',
           'local_partida': _localController.text.trim(),
           'observacoes': _observacoesController.text.trim().isNotEmpty
               ? _observacoesController.text.trim()
               : null,
-          'valor': _instrutorSelecionado!['valor_aula'] ?? 120.0,
+          'valor': double.tryParse(_instrutorSelecionado!['valor_aula']?.toString() ?? '') ?? 120.0,
           'forma_pagamento': null,
         },
       );
@@ -206,7 +215,8 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
             backgroundColor: AppColors.success,
           ),
         );
-        context.go(AppRoutes.dashboard);
+        // Força refresh passando timestamp como extra
+        context.go(AppRoutes.dashboard, extra: {'refresh': DateTime.now().millisecondsSinceEpoch});
       }
     } catch (e) {
       if (mounted) {
@@ -336,7 +346,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
             // Botão Agendar
             CustomButton(
               text: 'Agendar Aula',
-              onPressed: _canSubmit ? _handleAgendar : null,
+              onPressed: _isLoading ? null : _handleAgendar,
               isLoading: _isLoading,
               icon: Icons.check,
             ),
@@ -469,7 +479,9 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
             ),
             child: Center(
               child: Text(
-                (_instrutorSelecionado!['nome'] ?? 'I')[0].toUpperCase(),
+                (_instrutorSelecionado!['nome']?.toString().isNotEmpty == true
+                    ? _instrutorSelecionado!['nome'].toString()[0]
+                    : 'I').toUpperCase(),
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -484,7 +496,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _instrutorSelecionado!['nome'] ?? 'Instrutor',
+                  _instrutorSelecionado!['nome']?.toString() ?? 'Instrutor',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
@@ -501,7 +513,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'R\$ ${(_instrutorSelecionado!['valor_aula'] ?? 120.0).toStringAsFixed(0)}/aula',
+                      'R\$ ${(double.tryParse(_instrutorSelecionado!['valor_aula']?.toString() ?? '') ?? 120.0).toStringAsFixed(0)}/aula',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -584,7 +596,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
   }
 
   Widget _buildResumo() {
-    final valor = _instrutorSelecionado!['valor_aula'] ?? 120.0;
+    final valor = double.tryParse(_instrutorSelecionado!['valor_aula']?.toString() ?? '') ?? 120.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -604,7 +616,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
                 ),
           ),
           const SizedBox(height: 16),
-          _buildResumoItem('Instrutor', _instrutorSelecionado!['nome'] ?? '-'),
+          _buildResumoItem('Instrutor', _instrutorSelecionado!['nome']?.toString() ?? '-'),
           _buildResumoItem(
             'Data',
             _dataSelecionada != null
@@ -630,7 +642,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
                 ),
               ),
               Text(
-                'R\$ ${(valor as num).toStringAsFixed(2)}',
+                'R\$ ${valor.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 20,

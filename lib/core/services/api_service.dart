@@ -179,6 +179,19 @@ class ApiService {
   }
 
   dynamic _handleResponse(http.Response response) {
+    // Verifica se a resposta é HTML (erro do servidor)
+    final contentType = response.headers['content-type'] ?? '';
+    if (contentType.contains('text/html') ||
+        (response.body.isNotEmpty && response.body.trimLeft().startsWith('<'))) {
+      // Log para debug
+      print('API retornou HTML - Status: ${response.statusCode}');
+      print('URL: ${response.request?.url}');
+      throw ApiException(
+        'Erro de comunicação com o servidor (${response.statusCode})',
+        statusCode: response.statusCode,
+      );
+    }
+
     final body = response.body.isNotEmpty ? jsonDecode(response.body) : null;
 
     switch (response.statusCode) {
