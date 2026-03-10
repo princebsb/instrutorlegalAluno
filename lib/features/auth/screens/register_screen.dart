@@ -234,16 +234,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return true;
 
       case 2:
-        if (_cepFormatter.getUnmaskedText().length < 8) {
-          _showError('Informe um CEP válido');
-          return false;
-        }
-        if (_cidadeController.text.isEmpty) {
-          _showError('Informe sua cidade');
-          return false;
-        }
-        if (_estadoSelecionado == null) {
-          _showError('Selecione seu estado');
+        // CEP, cidade e estado são opcionais
+        // Validar formato apenas se preenchidos
+        final cep = _cepFormatter.getUnmaskedText();
+        if (cep.isNotEmpty && cep.length < 8) {
+          _showError('CEP incompleto. Preencha corretamente ou deixe em branco');
           return false;
         }
         return true;
@@ -280,6 +275,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final telefone = _telefoneFormatter.getUnmaskedText();
     final cpf = _cpfFormatter.getUnmaskedText();
 
+    final cepValue = _cepFormatter.getUnmaskedText();
+    final enderecoValue = _enderecoController.text.trim();
+    final cidadeValue = _cidadeController.text.trim();
+
     final success = await authProvider.register(
       nomeCompleto: _nomeController.text.trim(),
       email: _emailController.text.trim(),
@@ -287,10 +286,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       telefone: telefone.isNotEmpty ? telefone : null,
       dataNascimento: _formatDataNascimento(),
       cpf: cpf.isNotEmpty ? cpf : null,
-      cep: _cepFormatter.getUnmaskedText(),
-      endereco: _enderecoController.text.trim(),
-      cidade: _cidadeController.text.trim(),
-      estado: _estadoSelecionado!,
+      cep: cepValue.isNotEmpty ? cepValue : null,
+      endereco: enderecoValue.isNotEmpty ? enderecoValue : null,
+      cidade: cidadeValue.isNotEmpty ? cidadeValue : null,
+      estado: _estadoSelecionado,
       possuiCnh: _possuiCnh,
       categoriaPretendida: _categoriaPretendida,
     );
@@ -532,7 +531,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 24),
 
           CustomTextField(
-            label: 'CEP',
+            label: 'CEP (opcional)',
             hint: '00000-000',
             controller: _cepController,
             keyboardType: TextInputType.number,
@@ -568,7 +567,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 flex: 2,
                 child: CustomTextField(
-                  label: 'Cidade',
+                  label: 'Cidade (opcional)',
                   hint: 'Sua cidade',
                   controller: _cidadeController,
                   textInputAction: TextInputAction.next,
@@ -577,7 +576,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: CustomDropdownField<String>(
-                  label: 'Estado',
+                  label: 'Estado (opcional)',
                   hint: 'UF',
                   value: _estadoSelecionado,
                   items: _estados

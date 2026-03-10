@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -34,6 +36,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   bool _isLoading = false;
   bool _hasChanges = false;
   bool _isLoadingCep = false;
+  File? _selectedImage;
+  final ImagePicker _imagePicker = ImagePicker();
 
   final _phoneMask = MaskTextInputFormatter(
     mask: '(##) #####-####',
@@ -113,7 +117,9 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       final cepRaw = user.cep?.replaceAll(RegExp(r'\D'), '') ?? '';
       _telefoneController.text = _phoneMask.maskText(telefoneRaw);
       _cpfController.text = _cpfMask.maskText(cpfRaw);
-      _dataNascimentoController.text = user.dataNascimento ?? '';
+      // Data já vem formatada como DD/MM/YYYY do backend
+      final dataRaw = user.dataNascimento?.replaceAll(RegExp(r'\D'), '') ?? '';
+      _dataNascimentoController.text = _dateMask.maskText(dataRaw);
       _cepController.text = _cepMask.maskText(cepRaw);
       _enderecoController.text = user.endereco ?? '';
       _bairroController.text = user.bairro ?? '';
@@ -214,6 +220,33 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       }
     } finally {
       setState(() => _isLoadingCep = false);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+          _hasChanges = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao selecionar imagem'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -354,27 +387,31 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                           border:
                               Border.all(color: AppColors.primary, width: 3),
                         ),
-                        child: Center(
-                          child: Text(
-                            context.watch<AuthProvider>().user?.iniciais ?? 'U',
-                            style: const TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                        child: ClipOval(
+                          child: _selectedImage != null
+                              ? Image.file(
+                                  _selectedImage!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                )
+                              : Center(
+                                  child: Text(
+                                    context.watch<AuthProvider>().user?.iniciais ?? 'U',
+                                    style: const TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
                       Positioned(
                         right: 0,
                         bottom: 0,
                         child: GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Alterar foto em breve!')),
-                            );
-                          },
+                          onTap: _pickImage,
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: const BoxDecoration(
@@ -490,88 +527,50 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                 _buildSectionTitle('Endereço'),
                 const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: CustomTextField(
-                        label: 'CEP',
-                        controller: _cepController,
-                        prefixIcon: const Icon(Icons.location_on_outlined),
-                        suffixIcon: _isLoadingCep
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              )
-                            : null,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [_cepMask],
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Informe o CEP';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 3,
-                      child: CustomTextField(
-                        label: 'Estado',
-                        controller: _estadoController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Informe o estado';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
+                CustomTextField(
+                  label: 'CEP (opcional)',
+                  controller: _cepController,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  suffixIcon: _isLoadingCep
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_cepMask],
                 ).animate().fadeIn(delay: 300.ms),
 
                 const SizedBox(height: 16),
 
                 CustomTextField(
-                  label: 'Cidade',
+                  label: 'Estado (opcional)',
+                  controller: _estadoController,
+                ).animate().fadeIn(delay: 320.ms),
+
+                const SizedBox(height: 16),
+
+                CustomTextField(
+                  label: 'Cidade (opcional)',
                   controller: _cidadeController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe a cidade';
-                    }
-                    return null;
-                  },
                 ).animate().fadeIn(delay: 350.ms),
 
                 const SizedBox(height: 16),
 
                 CustomTextField(
-                  label: 'Bairro',
+                  label: 'Bairro (opcional)',
                   controller: _bairroController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe o bairro';
-                    }
-                    return null;
-                  },
                 ).animate().fadeIn(delay: 400.ms),
 
                 const SizedBox(height: 16),
 
                 CustomTextField(
-                  label: 'Endereço',
+                  label: 'Endereço (opcional)',
                   controller: _enderecoController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe o endereço';
-                    }
-                    return null;
-                  },
                 ).animate().fadeIn(delay: 450.ms),
 
                 const SizedBox(height: 32),

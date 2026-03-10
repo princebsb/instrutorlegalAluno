@@ -186,15 +186,23 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
           '${dataHoraLocal.hour.toString().padLeft(2, '0')}:'
           '${dataHoraLocal.minute.toString().padLeft(2, '0')}:00';
 
-      // Usa o user_id se disponível, senão usa o id
-      final instrutorId = _instrutorSelecionado!['user_id']?.toString()
-          ?? _instrutorSelecionado!['uuid']?.toString()
-          ?? _instrutorSelecionado!['id']?.toString();
+      // Prioriza instrutor_id (novo), depois id, depois user_id
+      final instrutorId = _instrutorSelecionado!['instrutor_id']?.toString()
+          ?? _instrutorSelecionado!['id']?.toString()
+          ?? _instrutorSelecionado!['user_id']?.toString();
+
+      // Prioriza alunoId, depois id do usuario
+      final alunoId = user.alunoId ?? user.id;
+
+      debugPrint('=== AGENDANDO AULA ===');
+      debugPrint('aluno_id: $alunoId');
+      debugPrint('instrutor_id: $instrutorId');
+      debugPrint('instrutor completo: $_instrutorSelecionado');
 
       await _api.post(
         ApiEndpoints.aulas,
         body: {
-          'aluno_id': user.alunoId ?? user.id,
+          'aluno_id': alunoId,
           'instrutor_id': instrutorId,
           'data_hora': dataHoraFormatada,
           'duracao_minutos': 50,

@@ -1,7 +1,7 @@
 name: instrutor_legal_aluno
 description: Aplicativo oficial do Instrutor Legal para Alunos - Agende aulas de direção com instrutores autônomos credenciados.
 publish_to: 'none'
-version: 1.0.2+15
+version: 1.0.6+25
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -54,6 +54,9 @@ dependencies:
   intl: any
   connectivity_plus: ^6.1.0
   package_info_plus: ^9.0.0
+
+  # Seleção de imagem (usa Photo Picker do Android - não requer READ_MEDIA)
+  image_picker: ^1.0.7
 
   # Animações
   flutter_animate: ^4.3.0

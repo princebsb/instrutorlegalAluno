@@ -68,10 +68,10 @@ class AuthService {
     String? telefone,
     String? dataNascimento,
     String? cpf,
-    required String cep,
+    String? cep,
     String? endereco,
-    required String cidade,
-    required String estado,
+    String? cidade,
+    String? estado,
     required bool possuiCnh,
     required String categoriaPretendida,
   }) async {
@@ -84,10 +84,10 @@ class AuthService {
         'telefone': telefone ?? '',
         'dataNascimento': dataNascimento ?? '',
         'cpf': cpf ?? '',
-        'cep': cep,
+        'cep': cep ?? '',
         'endereco': endereco ?? '',
-        'cidade': cidade,
-        'estado': estado,
+        'cidade': cidade ?? '',
+        'estado': estado ?? '',
         'possuiCnh': possuiCnh ? 'sim' : 'nao',
         'categoriaPretendida': categoriaPretendida,
       },
@@ -153,8 +153,11 @@ class AuthService {
     if (cep != null && cep.isNotEmpty) body['cep'] = cep;
     if (cidade != null && cidade.isNotEmpty) body['cidade'] = cidade;
     if (estado != null && estado.isNotEmpty) body['estado'] = estado;
-    if (cpf != null && cpf.isNotEmpty) body['cpf'] = cpf;
-    if (dataNascimento != null && dataNascimento.isNotEmpty) body['data_nascimento'] = dataNascimento;
+    // Sempre enviar CPF e data_nascimento, mesmo que vazios
+    body['cpf'] = cpf?.isNotEmpty == true ? cpf : null;
+    body['data_nascimento'] = dataNascimento?.isNotEmpty == true ? dataNascimento : null;
+
+    print('updateProfile body: $body');
 
     final response = await _api.put(
       ApiEndpoints.usuario(_currentUser!.id),

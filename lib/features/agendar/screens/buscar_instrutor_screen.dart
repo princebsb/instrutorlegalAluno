@@ -498,8 +498,6 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
     final estado = instrutor['estado'] ?? '';
     final bairro = instrutor['bairro'] ?? '';
     final telefone = instrutor['telefone'] ?? '';
-    final statusDenatran = instrutor['status_denatran'] ?? '';
-    final statusIL = instrutor['status_instrutorlegal'] ?? '';
 
     // Build location string
     final locationParts = <String>[];
@@ -582,22 +580,35 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // Status badges
-            Row(
-              children: [
-                if (statusDenatran.toString().isNotEmpty)
-                  _buildStatusBadge(
-                    'DENATRAN',
-                    statusDenatran.toString(),
+            // Badge de verificado (todos instrutores listados são aprovados)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.success.withOpacity(0.3),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.verified,
+                    size: 14,
+                    color: AppColors.success,
                   ),
-                if (statusDenatran.toString().isNotEmpty && statusIL.toString().isNotEmpty)
-                  const SizedBox(width: 8),
-                if (statusIL.toString().isNotEmpty)
-                  _buildStatusBadge(
-                    'Instrutor Legal',
-                    statusIL.toString(),
+                  SizedBox(width: 4),
+                  Text(
+                    'Instrutor Verificado',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.success,
+                    ),
                   ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             // Action buttons
@@ -643,46 +654,6 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String label, String status) {
-    final isAtivo = status.toLowerCase() == 'ativo' ||
-        status.toLowerCase() == 'aprovado' ||
-        status.toLowerCase() == 'credenciado';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isAtivo
-            ? AppColors.success.withValues(alpha: 0.1)
-            : AppColors.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isAtivo
-              ? AppColors.success.withValues(alpha: 0.3)
-              : AppColors.warning.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isAtivo ? Icons.verified : Icons.info_outline,
-            size: 14,
-            color: isAtivo ? AppColors.success : AppColors.warning,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: isAtivo ? AppColors.success : AppColors.warning,
-            ),
-          ),
-        ],
       ),
     );
   }

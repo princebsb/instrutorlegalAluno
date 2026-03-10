@@ -76,10 +76,10 @@ class AuthProvider extends ChangeNotifier {
     String? telefone,
     String? dataNascimento,
     String? cpf,
-    required String cep,
+    String? cep,
     String? endereco,
-    required String cidade,
-    required String estado,
+    String? cidade,
+    String? estado,
     required bool possuiCnh,
     required String categoriaPretendida,
   }) async {
