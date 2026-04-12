@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -511,175 +513,292 @@ class _PagamentosScreenState extends State<PagamentosScreen> {
   }
 
   void _showPaymentOptions(Map<String, dynamic> pagamento) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.gray300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Escolha a forma de pagamento',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 20),
-            _buildPaymentOption(
-              icon: Icons.qr_code,
-              title: 'PIX',
-              subtitle: 'Pagamento instantâneo',
-              color: AppColors.primary,
-              onTap: () {
-                Navigator.pop(context);
-                _showPixPayment(pagamento);
-              },
-            ),
-            _buildPaymentOption(
-              icon: Icons.credit_card,
-              title: 'Cartão de Crédito',
-              subtitle: 'Parcele em até 12x',
-              color: AppColors.info,
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Pagamento com cartão em breve!'),
-                  ),
-                );
-              },
-            ),
-            _buildPaymentOption(
-              icon: Icons.receipt_long,
-              title: 'Boleto Bancário',
-              subtitle: 'Vencimento em 3 dias',
-              color: AppColors.secondary,
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Boleto em breve!'),
-                  ),
-                );
-              },
-            ),
-            _buildPaymentOption(
-              icon: Icons.money,
-              title: 'Dinheiro',
-              subtitle: 'Pagar ao instrutor',
-              color: AppColors.success,
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Combine com o instrutor!'),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
+    // Ir direto para o PIX
+    _showPixPayment(pagamento);
   }
 
-  Widget _buildPaymentOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
-    );
-  }
+  Future<void> _showPixPayment(Map<String, dynamic> pagamento) async {
+    final aulaId = pagamento['id']?.toString();
+    final valor = ((pagamento['valor'] as num?) ?? 0).toStringAsFixed(2);
 
-  void _showPixPayment(Map<String, dynamic> pagamento) {
+    // Mostrar loading
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pagamento PIX'),
-        content: Column(
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Gerar/buscar cobrança PIX
+      final response = await _api.post(
+        ApiEndpoints.gerarCobranca,
+        body: {'aulaId': aulaId},
+      );
+
+      // Fechar loading
+      if (mounted) Navigator.pop(context);
+
+      final cobranca = response['cobranca'];
+      if (cobranca == null) {
+        throw Exception('Erro ao gerar cobrança');
+      }
+
+      final pixCopiaECola = cobranca['pixCopiaECola']?.toString() ?? '';
+      final valorCobranca = cobranca['valorNominal']?.toString() ?? valor;
+
+      if (!mounted) return;
+
+      // Mostrar modal com QR Code
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _buildPixModal(pixCopiaECola, valorCobranca),
+      );
+    } catch (e) {
+      // Fechar loading
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PIX: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildPixModal(String pixCopiaECola, String valor) {
+    final hasPixCode = pixCopiaECola.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Handle
             Container(
-              padding: const EdgeInsets.all(20),
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                color: AppColors.gray100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.qr_code,
-                size: 120,
-                color: AppColors.gray500,
+                color: AppColors.gray300,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Valor: R\$ ${((pagamento['valor'] as num?) ?? 0).toStringAsFixed(2)}',
-              style: const TextStyle(
+            const SizedBox(height: 20),
+
+            const Text(
+              'Pagar via PIX',
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Escaneie o QR Code ou copie o código PIX',
-              textAlign: TextAlign.center,
+
+            Text(
+              'R\$ $valor',
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
             ),
+            const SizedBox(height: 24),
+
+            if (hasPixCode) ...[
+              // QR Code
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.gray200),
+                ),
+                child: QrImageView(
+                  data: pixCopiaECola,
+                  version: QrVersions.auto,
+                  size: 200,
+                  backgroundColor: AppColors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              const Text(
+                'Escaneie o QR Code com o app do seu banco',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.gray600,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Divider
+              Row(
+                children: [
+                  Expanded(child: Divider(color: AppColors.gray300)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'ou copie o código',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.gray500,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: AppColors.gray300)),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Código PIX Copia e Cola
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.gray100,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.gray200),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      pixCopiaECola.length > 50
+                          ? '${pixCopiaECola.substring(0, 50)}...'
+                          : pixCopiaECola,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        color: AppColors.gray600,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: pixCopiaECola));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Código PIX copiado!'),
+                              backgroundColor: AppColors.success,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy, size: 18),
+                        label: const Text('Copiar código PIX'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.infoLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: AppColors.info, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'O pagamento é processado automaticamente. Após pagar, aguarde alguns minutos para atualização.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Erro - sem código PIX
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.warningLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 48),
+                    SizedBox(height: 12),
+                    Text(
+                      'Não foi possível gerar o código PIX',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Verifique se seus dados cadastrais estão completos (CPF, endereço) e tente novamente.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            // Botão fechar
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.gray600,
+                  side: const BorderSide(color: AppColors.gray300),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Fechar'),
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Código PIX copiado!'),
-                  backgroundColor: AppColors.success,
-                ),
-              );
-            },
-            icon: const Icon(Icons.copy),
-            label: const Text('Copiar código'),
-          ),
-        ],
       ),
     );
   }

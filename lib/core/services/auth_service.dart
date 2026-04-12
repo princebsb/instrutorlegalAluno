@@ -70,10 +70,13 @@ class AuthService {
     String? cpf,
     String? cep,
     String? endereco,
+    String? bairro,
     String? cidade,
     String? estado,
     required bool possuiCnh,
     required String categoriaPretendida,
+    double? latitude,
+    double? longitude,
   }) async {
     final response = await _api.post(
       ApiEndpoints.register,
@@ -86,10 +89,13 @@ class AuthService {
         'cpf': cpf ?? '',
         'cep': cep ?? '',
         'endereco': endereco ?? '',
+        'bairro': bairro ?? '',
         'cidade': cidade ?? '',
         'estado': estado ?? '',
         'possuiCnh': possuiCnh ? 'sim' : 'nao',
         'categoriaPretendida': categoriaPretendida,
+        'latitude': latitude,
+        'longitude': longitude,
       },
       requiresAuth: false,
     );

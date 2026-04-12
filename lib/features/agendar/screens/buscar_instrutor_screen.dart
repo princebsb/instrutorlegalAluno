@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 
 class BuscarInstrutorScreen extends StatefulWidget {
@@ -25,9 +25,13 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
   bool _isLoadingLocation = false;
   String? _errorMessage;
 
-  // Location
-  String? _cidade;
-  String? _estado;
+  // Região do aluno (usada para filtrar por cidade/estado)
+  String? _cidadeAluno;
+  String? _estadoAluno;
+
+  // Localização GPS
+  double? _latitude;
+  double? _longitude;
   bool _usingLocation = false;
 
   // Pagination
@@ -38,6 +42,16 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
   @override
   void initState() {
     super.initState();
+    _carregarRegiaoAluno();
+  }
+
+  void _carregarRegiaoAluno() {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.user;
+    if (user != null) {
+      _cidadeAluno = user.cidade;
+      _estadoAluno = user.estado;
+    }
     _loadInstrutores();
   }
 
@@ -71,16 +85,26 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
         queryParams['nome'] = nome;
       }
 
-      if (_usingLocation && _cidade != null) {
-        queryParams['cidade'] = _cidade!;
-      }
-      if (_usingLocation && _estado != null) {
-        queryParams['estado'] = _estado!;
+      // Se está usando localização GPS, enviar latitude/longitude
+      if (_usingLocation && _latitude != null && _longitude != null) {
+        queryParams['latitude'] = _latitude.toString();
+        queryParams['longitude'] = _longitude.toString();
+        queryParams['raio'] = '15'; // 15km de raio
+      } else {
+        // Caso contrário, filtrar pela região do aluno
+        if (_cidadeAluno != null && _cidadeAluno!.isNotEmpty) {
+          queryParams['cidade'] = _cidadeAluno!;
+        }
+        if (_estadoAluno != null && _estadoAluno!.isNotEmpty) {
+          queryParams['estado'] = _estadoAluno!;
+        }
       }
 
       final queryString = queryParams.entries
           .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
           .join('&');
+
+      debugPrint('>>> Buscando instrutores: ${ApiEndpoints.listaInstrutores}?$queryString');
 
       final response = await _api.get(
         '${ApiEndpoints.listaInstrutores}?$queryString',
@@ -180,23 +204,14 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
         desiredAccuracy: LocationAccuracy.medium,
       );
 
-      // Reverse geocode to get city/state
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+        _usingLocation = true;
+      });
 
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        setState(() {
-          _cidade = place.subAdministrativeArea ?? place.locality;
-          _estado = place.administrativeArea;
-          _usingLocation = true;
-        });
-
-        // Reload with location filter
-        await _loadInstrutores();
-      }
+      // Reload with location filter
+      await _loadInstrutores();
     } catch (e) {
       debugPrint('Erro ao obter localização: $e');
       if (mounted) {
@@ -214,8 +229,8 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
 
   void _limparLocalizacao() {
     setState(() {
-      _cidade = null;
-      _estado = null;
+      _latitude = null;
+      _longitude = null;
       _usingLocation = false;
     });
     _loadInstrutores();
@@ -230,27 +245,21 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
     });
   }
 
-  Future<void> _abrirWhatsApp(String telefone, String nome) async {
-    // Clean phone number
-    final phone = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    final fullPhone = phone.startsWith('55') ? phone : '55$phone';
-    final message = Uri.encodeComponent(
-      'Olá $nome! Encontrei seu perfil no Instrutor Legal e gostaria de agendar uma aula.',
-    );
-    final url = Uri.parse('https://wa.me/$fullPhone?text=$message');
-
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível abrir o WhatsApp.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+  String _formatarCategorias(dynamic categorias) {
+    if (categorias == null) return 'B';
+    if (categorias is List) {
+      return categorias.map((c) => c.toString()).join(', ');
     }
+    return categorias.toString();
+  }
+
+  String _formatarDistancia(dynamic distancia) {
+    if (distancia == null) return '';
+    final dist = double.tryParse(distancia.toString()) ?? 0;
+    if (dist < 1) {
+      return '${(dist * 1000).toStringAsFixed(0)}m';
+    }
+    return '${dist.toStringAsFixed(1)}km';
   }
 
   @override
@@ -276,87 +285,38 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
                   prefixIcon: const Icon(Icons.search),
                   onChanged: _onSearchChanged,
                 ),
-                const SizedBox(height: 12),
-                // Location button
-                SizedBox(
-                  width: double.infinity,
-                  child: _isLoadingLocation
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: _usingLocation ? null : _usarMinhaLocalizacao,
-                          icon: const Icon(Icons.my_location, size: 20),
-                          label: const Text('Usar minha localização'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.white,
-                            disabledBackgroundColor: AppColors.gray200,
-                            disabledForegroundColor: AppColors.gray500,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                ),
-                // Location chip
-                if (_usingLocation && _cidade != null)
+                // Região do aluno (quando NÃO usando GPS)
+                if (!_usingLocation && (_cidadeAluno != null || _estadoAluno != null))
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  size: 16,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    _estado != null
-                                        ? '$_cidade - $_estado'
-                                        : _cidade!,
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: _limparLocalizacao,
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.gray100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: AppColors.gray600,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Região: ${_cidadeAluno ?? ''}${_cidadeAluno != null && _estadoAluno != null ? ' - ' : ''}${_estadoAluno ?? ''}',
+                            style: const TextStyle(
+                              color: AppColors.gray600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -461,8 +421,10 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
             const SizedBox(height: 8),
             Text(
               _usingLocation
-                  ? 'Tente limpar o filtro de localização ou buscar por nome.'
-                  : 'Tente usar sua localização para encontrar instrutores próximos.',
+                  ? 'Não encontramos instrutores em até 15km. Tente buscar por nome ou desative o filtro de localização.'
+                  : _cidadeAluno != null || _estadoAluno != null
+                      ? 'Não encontramos instrutores na sua região. Tente usar sua localização para buscar por proximidade.'
+                      : 'Atualize seu perfil com sua cidade ou use sua localização para encontrar instrutores próximos.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
@@ -493,11 +455,13 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
   }
 
   Widget _buildInstrutorCard(Map<String, dynamic> instrutor) {
-    final nome = instrutor['nome'] ?? 'Instrutor';
+    final nome = instrutor['nome_completo'] ?? instrutor['nome'] ?? 'Instrutor';
     final cidade = instrutor['cidade'] ?? '';
     final estado = instrutor['estado'] ?? '';
     final bairro = instrutor['bairro'] ?? '';
-    final telefone = instrutor['telefone'] ?? '';
+    final categorias = instrutor['categorias_cnh'];
+    final tipoVeiculo = instrutor['tipo_veiculo'];
+    final distancia = instrutor['distancia_km'];
 
     // Build location string
     final locationParts = <String>[];
@@ -577,80 +541,149 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
                     ],
                   ),
                 ),
+                // Distância (quando usando GPS)
+                if (_usingLocation && distancia != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.near_me,
+                          size: 12,
+                          color: AppColors.info,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatarDistancia(distancia),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.info,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
-            // Badge de verificado (todos instrutores listados são aprovados)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.success.withOpacity(0.3),
-                ),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.verified,
-                    size: 14,
-                    color: AppColors.success,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    'Instrutor Verificado',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.success,
+            // Badges row: Verificado, Categoria, Tipo de Veículo
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Badge de verificado
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.success.withOpacity(0.3),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Action buttons
-            Row(
-              children: [
-                if (telefone.toString().isNotEmpty)
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _abrirWhatsApp(
-                        telefone.toString(),
-                        nome.toString(),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified,
+                        size: 14,
+                        color: AppColors.success,
                       ),
-                      icon: const Icon(Icons.chat, size: 18),
-                      label: const Text('WhatsApp'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366),
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                      SizedBox(width: 4),
+                      Text(
+                        'Verificado',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.success,
                         ),
                       ),
-                    ),
-                  ),
-                if (telefone.toString().isNotEmpty)
-                  const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.pop(instrutor),
-                    icon: const Icon(Icons.calendar_today, size: 18),
-                    label: const Text('Selecionar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
+                // Badge de categoria CNH
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.badge_outlined,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Cat. ${_formatarCategorias(categorias)}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Badge de tipo de veículo (se tiver)
+                if (tipoVeiculo != null && tipoVeiculo.toString().isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.gray200,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.directions_car_outlined,
+                          size: 14,
+                          color: AppColors.gray700,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          tipoVeiculo.toString(),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.gray700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
+            ),
+            const SizedBox(height: 12),
+            // Action button - Selecionar
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.pop(instrutor),
+                icon: const Icon(Icons.calendar_today, size: 18),
+                label: const Text('Selecionar Instrutor'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

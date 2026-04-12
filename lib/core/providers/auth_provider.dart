@@ -78,10 +78,13 @@ class AuthProvider extends ChangeNotifier {
     String? cpf,
     String? cep,
     String? endereco,
+    String? bairro,
     String? cidade,
     String? estado,
     required bool possuiCnh,
     required String categoriaPretendida,
+    double? latitude,
+    double? longitude,
   }) async {
     _status = AuthStatus.loading;
     _error = null;
@@ -97,10 +100,13 @@ class AuthProvider extends ChangeNotifier {
         cpf: cpf,
         cep: cep,
         endereco: endereco,
+        bairro: bairro,
         cidade: cidade,
         estado: estado,
         possuiCnh: possuiCnh,
         categoriaPretendida: categoriaPretendida,
+        latitude: latitude,
+        longitude: longitude,
       );
       _status = AuthStatus.authenticated;
       notifyListeners();

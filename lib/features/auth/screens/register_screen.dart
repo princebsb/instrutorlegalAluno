@@ -33,6 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _dataNascimentoController = TextEditingController();
   final _cepController = TextEditingController();
   final _enderecoController = TextEditingController();
+  final _bairroController = TextEditingController();
   final _cidadeController = TextEditingController();
 
   String? _estadoSelecionado;
@@ -40,6 +41,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _categoriaPretendida = 'B';
   bool _isLoading = false;
   bool _isLoadingCep = false;
+  bool _cepEncontrado = false;
+  double? _latitude;
+  double? _longitude;
 
   // Formatters
   final _telefoneFormatter = MaskTextInputFormatter(
@@ -95,11 +99,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final data = jsonDecode(response.body);
 
         if (data['erro'] != true) {
+          final logradouro = data['logradouro'] ?? '';
+          final bairro = data['bairro'] ?? '';
+          final cidade = data['localidade'] ?? '';
+          final estado = data['uf'] ?? '';
+
           setState(() {
-            _enderecoController.text = '${data['logradouro'] ?? ''}, ${data['bairro'] ?? ''}';
-            _cidadeController.text = data['localidade'] ?? '';
-            _estadoSelecionado = data['uf'];
+            _enderecoController.text = logradouro;
+            _bairroController.text = bairro;
+            _cidadeController.text = cidade;
+            _estadoSelecionado = estado;
+            _cepEncontrado = true;
           });
+
+          // Buscar coordenadas via Photon API
+          await _buscarCoordenadas(logradouro, bairro, cidade, estado);
         }
       }
     } catch (e) {
@@ -107,6 +121,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     setState(() => _isLoadingCep = false);
+  }
+
+  Future<void> _buscarCoordenadas(String endereco, String bairro, String cidade, String estado) async {
+    try {
+      final partes = <String>[];
+      if (endereco.isNotEmpty) partes.add(endereco);
+      if (bairro.isNotEmpty) partes.add(bairro);
+      if (cidade.isNotEmpty) partes.add(cidade);
+      if (estado.isNotEmpty) partes.add(estado);
+      partes.add('Brasil');
+
+      final query = partes.join(', ');
+      final url = 'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&limit=1';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'User-Agent': 'InstructorLegal/1.0'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['features'] != null && (data['features'] as List).isNotEmpty) {
+          final coords = data['features'][0]['geometry']['coordinates'];
+          if (coords != null && coords.length >= 2) {
+            final lng = (coords[0] as num).toDouble();
+            final lat = (coords[1] as num).toDouble();
+            if (!lat.isNaN && !lng.isNaN) {
+              setState(() {
+                _latitude = lat;
+                _longitude = lng;
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Silencioso - coordenadas são opcionais
+    }
   }
 
   bool _validarCpf(String cpf) {
@@ -154,6 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _dataNascimentoController.dispose();
     _cepController.dispose();
     _enderecoController.dispose();
+    _bairroController.dispose();
     _cidadeController.dispose();
     super.dispose();
   }
@@ -277,6 +330,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final cepValue = _cepFormatter.getUnmaskedText();
     final enderecoValue = _enderecoController.text.trim();
+    final bairroValue = _bairroController.text.trim();
     final cidadeValue = _cidadeController.text.trim();
 
     final success = await authProvider.register(
@@ -288,10 +342,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       cpf: cpf.isNotEmpty ? cpf : null,
       cep: cepValue.isNotEmpty ? cepValue : null,
       endereco: enderecoValue.isNotEmpty ? enderecoValue : null,
+      bairro: bairroValue.isNotEmpty ? bairroValue : null,
       cidade: cidadeValue.isNotEmpty ? cidadeValue : null,
       estado: _estadoSelecionado,
       possuiCnh: _possuiCnh,
       categoriaPretendida: _categoriaPretendida,
+      latitude: _latitude,
+      longitude: _longitude,
     );
 
     setState(() => _isLoading = false);
@@ -554,10 +611,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
           CustomTextField(
             label: 'Endereço (opcional)',
-            hint: 'Rua, número, bairro',
+            hint: 'Rua, número',
             controller: _enderecoController,
             textInputAction: TextInputAction.next,
             prefixIcon: const Icon(Icons.home_outlined),
+          ),
+
+          const SizedBox(height: 16),
+
+          CustomTextField(
+            label: 'Bairro',
+            hint: 'Bairro',
+            controller: _bairroController,
+            textInputAction: TextInputAction.next,
+            prefixIcon: const Icon(Icons.location_city_outlined),
+            readOnly: _cepEncontrado,
+            enabled: !_cepEncontrado,
           ),
 
           const SizedBox(height: 16),
@@ -567,25 +636,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 flex: 2,
                 child: CustomTextField(
-                  label: 'Cidade (opcional)',
+                  label: 'Cidade',
                   hint: 'Sua cidade',
                   controller: _cidadeController,
                   textInputAction: TextInputAction.next,
+                  readOnly: _cepEncontrado,
+                  enabled: !_cepEncontrado,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: CustomDropdownField<String>(
-                  label: 'Estado (opcional)',
-                  hint: 'UF',
-                  value: _estadoSelecionado,
-                  items: _estados
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() => _estadoSelecionado = value);
-                  },
-                ),
+                child: _cepEncontrado
+                    ? CustomTextField(
+                        label: 'Estado',
+                        hint: 'UF',
+                        controller: TextEditingController(text: _estadoSelecionado ?? ''),
+                        readOnly: true,
+                        enabled: false,
+                      )
+                    : CustomDropdownField<String>(
+                        label: 'Estado',
+                        hint: 'UF',
+                        value: _estadoSelecionado,
+                        items: _estados
+                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() => _estadoSelecionado = value);
+                        },
+                      ),
               ),
             ],
           ),

@@ -76,6 +76,223 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
     }
   }
 
+  Future<void> _confirmarAulaRealizada(Map<String, dynamic> aula) async {
+    // Verificar se a aula está paga
+    if (!_aulaPaga(aula)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa pagar a aula antes de confirmar.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Aula'),
+        content: const Text(
+          'Você confirma que esta aula foi realizada?\n\n'
+          'Ao confirmar, o pagamento será liberado para o instrutor.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+            ),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      try {
+        await _api.post(
+          ApiEndpoints.confirmarAulaRealizada(aula['id'].toString()),
+          body: {},
+        );
+
+        if (mounted) {
+          Navigator.pop(context); // Fecha o bottom sheet
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aula confirmada com sucesso!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          _loadAulas(); // Recarrega os dados
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao confirmar aula: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _abrirDisputa(Map<String, dynamic> aula) async {
+    // Verificar se a aula está paga
+    if (!_aulaPaga(aula)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa pagar a aula antes de abrir uma disputa.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    String? motivoSelecionado;
+    final descricaoController = TextEditingController();
+
+    final motivos = [
+      'Aula não foi realizada',
+      'Instrutor não compareceu',
+      'Aula incompleta',
+      'Problema com veículo',
+      'Outro',
+    ];
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Abrir Disputa'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Selecione o motivo da disputa:',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: motivoSelecionado,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  hint: const Text('Selecione o motivo'),
+                  items: motivos.map((motivo) {
+                    return DropdownMenuItem(
+                      value: motivo,
+                      child: Text(motivo),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      motivoSelecionado = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Descreva o problema:',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: descricaoController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Descreva o que aconteceu...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: motivoSelecionado != null
+                  ? () => Navigator.pop(context, true)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+              ),
+              child: const Text('Abrir Disputa'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmar == true && motivoSelecionado != null) {
+      try {
+        await _api.post(
+          ApiEndpoints.abrirDisputa(aula['id'].toString()),
+          body: {
+            'motivo': motivoSelecionado,
+            'descricao': descricaoController.text.trim(),
+          },
+        );
+
+        if (mounted) {
+          Navigator.pop(context); // Fecha o bottom sheet
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Disputa aberta com sucesso. Entraremos em contato.'),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+          _loadAulas(); // Recarrega os dados
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao abrir disputa: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+
+    descricaoController.dispose();
+  }
+
+  bool _podeConfirmarOuDisputar(Map<String, dynamic> aula) {
+    final dataHora = DateTime.tryParse(aula['data_hora'] ?? '');
+    if (dataHora == null) return false;
+
+    final confirmacaoAluno = aula['confirmacao_aluno'] == true || aula['confirmacao_aluno'] == 1;
+    final disputaAberta = aula['disputa_aberta'] == true || aula['disputa_aberta'] == 1;
+    final passouHorario = DateTime.now().isAfter(dataHora);
+
+    // Mostra os botões se o horário passou e não tem confirmação nem disputa
+    return !confirmacaoAluno && !disputaAberta && passouHorario;
+  }
+
+  bool _aulaPaga(Map<String, dynamic> aula) {
+    return aula['pago'] == true || aula['pago'] == 1;
+  }
+
   Future<void> _confirmarCancelamento(Map<String, dynamic> aula) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -223,35 +440,147 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                 value: 'R\$ ${valor.toStringAsFixed(2)}',
               ),
 
-            // Telefone do instrutor
-            if (aula['instrutor_telefone'] != null)
-              _buildDetalheItem(
-                icon: Icons.phone,
-                label: 'Telefone',
-                value: aula['instrutor_telefone'].toString(),
+            // Status de confirmação/disputa
+            if (aula['confirmacao_aluno'] == true || aula['confirmacao_aluno'] == 1)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Aula confirmada pelo aluno',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (aula['disputa_aberta'] == true || aula['disputa_aberta'] == 1)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning_amber, color: AppColors.warning, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Disputa em análise',
+                        style: TextStyle(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
             const SizedBox(height: 24),
 
-            // Botões
-            Row(
-              children: [
-                // Botão cancelar
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _confirmarCancelamento(aula),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+            // Botões de confirmação/disputa (se aplicável)
+            if (_podeConfirmarOuDisputar(aula)) ...[
+              // Aviso se a aula não foi paga
+              if (!_aulaPaga(aula))
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: AppColors.info, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pague a aula para confirmar ou abrir disputa',
+                          style: TextStyle(
+                            color: AppColors.info,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: const Text('Cancelar Aula'),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _confirmarAulaRealizada(aula),
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text('Confirmar Aula'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _abrirDisputa(aula),
+                      icon: const Icon(Icons.warning_amber),
+                      label: const Text('Tive Problema'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.warning,
+                        side: const BorderSide(color: AppColors.warning),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Botões padrão
+            Row(
+              children: [
+                // Botão cancelar (apenas se a aula ainda não passou)
+                if (DateTime.tryParse(aula['data_hora'] ?? '')?.isAfter(DateTime.now()) ?? false) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _confirmarCancelamento(aula),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Cancelar Aula'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 // Botão fechar
                 Expanded(
                   child: ElevatedButton(
@@ -460,7 +789,10 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
         itemCount: _realizadas.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          return _buildAulaRealizadaCard(_realizadas[index]);
+          return GestureDetector(
+            onTap: () => _mostrarDetalhesAula(_realizadas[index]),
+            child: _buildAulaRealizadaCard(_realizadas[index]),
+          );
         },
       ),
     );
@@ -473,6 +805,7 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
     final local = aula['local_partida'] ?? '';
     final status = aula['status'] ?? 'Agendada';
     final categoria = aula['categoria'] ?? 'B';
+    final precisaConfirmar = _podeConfirmarOuDisputar(aula);
 
     final isHoje = DateUtils.isSameDay(dataHora, DateTime.now());
     final isAmanha = DateUtils.isSameDay(
@@ -496,7 +829,9 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
         boxShadow: AppColors.cardShadow,
         border: Border(
           left: BorderSide(
-            color: isHoje ? AppColors.warning : AppColors.info,
+            color: precisaConfirmar
+                ? AppColors.success
+                : (isHoje ? AppColors.warning : AppColors.info),
             width: 4,
           ),
         ),
@@ -591,24 +926,55 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(status).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _getStatusColor(status),
-                            fontWeight: FontWeight.w500,
+                      if (precisaConfirmar)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: 12,
+                                color: AppColors.success,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Confirmar',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.success,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(status).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _getStatusColor(status),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ],

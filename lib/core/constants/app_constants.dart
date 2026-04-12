@@ -77,4 +77,12 @@ class ApiEndpoints {
   // Notificações
   static String notificacoes(String userId) => '/notificacoes/$userId';
   static String marcarLida(String notifId) => '/notificacoes/$notifId/lida';
+
+  // Cobrancas (PIX)
+  static const String gerarCobranca = '/cobrancas/gerar';
+  static String cobranca(String aulaId) => '/cobrancas/$aulaId';
+
+  // Confirmação e Disputa de Aula
+  static String confirmarAulaRealizada(String aulaId) => '/aulas/$aulaId/confirmar-realizada';
+  static String abrirDisputa(String aulaId) => '/aulas/$aulaId/abrir-disputa';
 }
