@@ -440,8 +440,8 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                 value: 'R\$ ${valor.toStringAsFixed(2)}',
               ),
 
-            // Botão Mensagem (se aula paga)
-            if (_aulaPaga(aula) && aula['instrutor_usuario_id'] != null)
+            // Botão Mensagem
+            if (aula['instrutor_usuario_id'] != null)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 16),
@@ -1010,8 +1010,8 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                 ],
               ),
             ),
-            // Botão de mensagem (se aula paga)
-            if (_aulaPaga(aula) && aula['instrutor_usuario_id'] != null)
+            // Botão de mensagem
+            if (aula['instrutor_usuario_id'] != null)
               IconButton(
                 onPressed: () {
                   context.push(
