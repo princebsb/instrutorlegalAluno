@@ -440,6 +440,36 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                 value: 'R\$ ${valor.toStringAsFixed(2)}',
               ),
 
+            // Botão Mensagem (se aula paga)
+            if (_aulaPaga(aula) && aula['instrutor_id'] != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context); // Fecha o bottom sheet
+                    context.push(
+                      '${AppRoutes.conversa}/${aula['instrutor_id']}',
+                      extra: {
+                        'nomeContato': aula['instrutor_nome'] ?? 'Instrutor',
+                        'banido': false,
+                        'temAulaPaga': true,
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: const Text('Enviar Mensagem'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
             // Status de confirmação/disputa
             if (aula['confirmacao_aluno'] == true || aula['confirmacao_aluno'] == 1)
               Container(
@@ -980,10 +1010,28 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.gray400,
-            ),
+            // Botão de mensagem (se aula paga)
+            if (_aulaPaga(aula) && aula['instrutor_id'] != null)
+              IconButton(
+                onPressed: () {
+                  context.push(
+                    '${AppRoutes.conversa}/${aula['instrutor_id']}',
+                    extra: {
+                      'nomeContato': aula['instrutor_nome'] ?? 'Instrutor',
+                      'banido': false,
+                      'temAulaPaga': true,
+                    },
+                  );
+                },
+                icon: const Icon(Icons.chat_bubble_outline),
+                color: AppColors.primary,
+                tooltip: 'Enviar mensagem',
+              )
+            else
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.gray400,
+              ),
           ],
         ),
       ),
