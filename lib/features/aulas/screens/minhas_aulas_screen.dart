@@ -440,35 +440,39 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                 value: 'R\$ ${valor.toStringAsFixed(2)}',
               ),
 
+            const SizedBox(height: 16),
+
             // Botão Mensagem
-            if (aula['instrutor_usuario_id'] != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context); // Fecha o bottom sheet
-                    context.push(
-                      '${AppRoutes.conversa}/${aula['instrutor_usuario_id']}',
-                      extra: {
-                        'nomeContato': aula['instrutor_nome'] ?? 'Instrutor',
-                        'banido': false,
-                        'temAulaPaga': true,
-                      },
-                    );
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Text('Enviar Mensagem'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: aula['instrutor_usuario_id'] != null
+                    ? () {
+                        Navigator.pop(context);
+                        context.push(
+                          '${AppRoutes.conversa}/${aula['instrutor_usuario_id']}',
+                          extra: {
+                            'nomeContato': aula['instrutor_nome'] ?? 'Instrutor',
+                            'banido': false,
+                            'temAulaPaga': true,
+                          },
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text('Enviar Mensagem'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
+            ),
+
+            const SizedBox(height: 16),
 
             // Status de confirmação/disputa
             if (aula['confirmacao_aluno'] == true || aula['confirmacao_aluno'] == 1)
