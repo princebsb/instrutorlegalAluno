@@ -458,6 +458,7 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
     final nome = instrutor['nome_completo'] ?? instrutor['nome'] ?? 'Instrutor';
     final cep = instrutor['cep'] ?? '';
     final endereco = instrutor['endereco'] ?? '';
+    final bairro = instrutor['bairro'] ?? '';
     final cidade = instrutor['cidade'] ?? '';
     final estado = instrutor['estado'] ?? '';
     final categorias = instrutor['categorias_cnh'];
@@ -467,6 +468,7 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
     // Build location string
     final locationParts = <String>[];
     if (endereco.toString().isNotEmpty) locationParts.add(endereco.toString());
+    if (bairro.toString().isNotEmpty) locationParts.add(bairro.toString());
     if (cidade.toString().isNotEmpty) locationParts.add(cidade.toString());
     if (estado.toString().isNotEmpty) locationParts.add(estado.toString());
     if (cep.toString().isNotEmpty) locationParts.add('CEP: ${cep.toString()}');
