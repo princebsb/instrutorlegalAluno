@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -182,6 +183,12 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen>
             title: 'Alterar Senha',
             subtitle: 'Atualize sua senha de acesso',
             onTap: () => context.push(AppRoutes.alterarSenha),
+          ),
+          _buildInfoCard(
+            icon: Icons.shield_outlined,
+            title: 'Regras do Chat',
+            subtitle: 'Veja as regras de uso das mensagens',
+            onTap: _showChatRulesDialog,
           ),
           _buildInfoCard(
             icon: Icons.security,
@@ -416,6 +423,111 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen>
           ),
         ],
       ),
+    );
+  }
+
+  void _showChatRulesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.shield, color: Colors.white, size: 24),
+              SizedBox(width: 10),
+              Text(
+                'Regras do Chat',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.block, color: Colors.red.shade600, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Proibido compartilhar telefone, e-mail ou redes sociais',
+                      style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  _buildRuleRow('1ª vez: Aviso', Colors.amber),
+                  const SizedBox(height: 6),
+                  _buildRuleRow('2ª vez: Último aviso', Colors.orange),
+                  const SizedBox(height: 6),
+                  _buildRuleRow('3ª vez: Banimento', Colors.red),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('aluno_viu_regras_mensagens', false);
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('O modal será exibido novamente ao acessar Mensagens')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Resetar Modal'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRuleRow(String text, MaterialColor color) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color.shade600, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(text, style: TextStyle(color: color.shade700, fontSize: 12)),
+      ],
     );
   }
 
