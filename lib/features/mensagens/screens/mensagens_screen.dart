@@ -205,230 +205,137 @@ class _MensagensScreenState extends State<MensagensScreen> {
       color: Colors.black54,
       child: Center(
         child: Container(
-          margin: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxWidth: 400),
+          margin: const EdgeInsets.all(32),
+          constraints: const BoxConstraints(maxWidth: 320),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.primary, Color(0xFF008f4a)],
-                    ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.shield, color: Colors.white, size: 28),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Regras do Chat',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Leia com atenção antes de continuar',
-                              style: TextStyle(color: Colors.white70, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header compacto
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
                   ),
                 ),
-
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      // Regra Principal
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          border: Border.all(color: Colors.red.shade200),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.warning_amber, color: Colors.red.shade600, size: 24),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Proibido compartilhar contatos',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red.shade700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '• Telefone ou WhatsApp\n• E-mail\n• Redes sociais\n• Qualquer contato externo',
-                                    style: TextStyle(color: Colors.red.shade600, fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.shield, color: Colors.white, size: 24),
+                    SizedBox(width: 10),
+                    Text(
+                      'Regras do Chat',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                  ],
+                ),
+              ),
 
-                      const SizedBox(height: 16),
-
-                      // Por quê?
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          border: Border.all(color: Colors.blue.shade200),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Por que essa regra existe?',
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // Regra Principal compacta
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.block, color: Colors.red.shade600, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Proibido compartilhar telefone, e-mail ou redes sociais',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
+                                color: Colors.red.shade700,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'A plataforma garante a segurança de todas as transações. Mantendo tudo dentro da plataforma, protegemos você contra fraudes.',
-                              style: TextStyle(color: Colors.blue.shade600, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Consequências
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          border: Border.all(color: Colors.amber.shade200),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'O que acontece se violar?',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.amber.shade800,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            _buildWarningStep(1, '1ª violação:', 'Aviso de advertência', Colors.amber),
-                            const SizedBox(height: 8),
-                            _buildWarningStep(2, '2ª violação:', 'Último aviso', Colors.orange),
-                            const SizedBox(height: 8),
-                            _buildWarningStep(3, '3ª violação:', 'Banimento permanente', Colors.red),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Text(
-                        'As mensagens são monitoradas automaticamente.',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Botão
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _acceptRules,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text(
-                            'Entendi e aceito as regras',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Consequências compactas
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildWarningRow('1ª vez: Aviso', Colors.amber),
+                          const SizedBox(height: 6),
+                          _buildWarningRow('2ª vez: Último aviso', Colors.orange),
+                          const SizedBox(height: 6),
+                          _buildWarningRow('3ª vez: Banimento', Colors.red),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Botão
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _acceptRules,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Entendi',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildWarningStep(int step, String title, String description, MaterialColor color) {
+  Widget _buildWarningRow(String text, MaterialColor color) {
     return Row(
       children: [
         Container(
-          width: 24,
-          height: 24,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(
-            color: color.shade200,
+            color: color.shade600,
             shape: BoxShape.circle,
           ),
-          child: Center(
-            child: Text(
-              step.toString(),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: color.shade800,
-              ),
-            ),
-          ),
         ),
-        const SizedBox(width: 10),
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color.shade700, fontSize: 13)),
-        const SizedBox(width: 4),
-        Text(description, style: TextStyle(color: color.shade700, fontSize: 13)),
+        const SizedBox(width: 8),
+        Text(text, style: TextStyle(color: color.shade700, fontSize: 12)),
       ],
     );
   }
