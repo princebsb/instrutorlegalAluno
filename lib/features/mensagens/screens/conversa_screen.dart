@@ -177,18 +177,25 @@ class _ConversaScreenState extends State<ConversaScreen> {
         final alerta = response['alerta'];
         final mensagemRetornada = response['mensagem'];
 
-        // Atualizar a mensagem com o texto censurado do servidor
-        if (mensagemRetornada != null && mounted) {
-          setState(() {
-            final index = _mensagens.indexWhere((m) => m['id'] == tempId);
-            if (index != -1) {
-              _mensagens[index] = {
-                ..._mensagens[index],
-                'id': mensagemRetornada['id'],
-                'mensagem': mensagemRetornada['mensagem'], // Texto censurado
-              };
-            }
-          });
+        // Atualizar a mensagem com o ID real do servidor e texto censurado (se houver)
+        if (mensagemRetornada != null && mensagemRetornada is Map && mounted) {
+          final novoId = mensagemRetornada['id'];
+          final textoServidor = mensagemRetornada['mensagem'];
+
+          if (novoId != null) {
+            setState(() {
+              final index = _mensagens.indexWhere((m) => m['id'] == tempId);
+              if (index != -1) {
+                _mensagens[index] = {
+                  ..._mensagens[index],
+                  'id': novoId,
+                  // Só atualiza o texto se veio do servidor e não está vazio
+                  if (textoServidor != null && textoServidor.toString().isNotEmpty)
+                    'mensagem': textoServidor,
+                };
+              }
+            });
+          }
         }
 
         if (censurada && alerta != null && mounted) {
