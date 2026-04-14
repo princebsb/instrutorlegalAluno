@@ -456,18 +456,20 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
 
   Widget _buildInstrutorCard(Map<String, dynamic> instrutor) {
     final nome = instrutor['nome_completo'] ?? instrutor['nome'] ?? 'Instrutor';
+    final cep = instrutor['cep'] ?? '';
+    final endereco = instrutor['endereco'] ?? '';
     final cidade = instrutor['cidade'] ?? '';
     final estado = instrutor['estado'] ?? '';
-    final bairro = instrutor['bairro'] ?? '';
     final categorias = instrutor['categorias_cnh'];
     final tipoVeiculo = instrutor['tipo_veiculo'];
     final distancia = instrutor['distancia_km'];
 
     // Build location string
     final locationParts = <String>[];
-    if (bairro.toString().isNotEmpty) locationParts.add(bairro.toString());
+    if (endereco.toString().isNotEmpty) locationParts.add(endereco.toString());
     if (cidade.toString().isNotEmpty) locationParts.add(cidade.toString());
     if (estado.toString().isNotEmpty) locationParts.add(estado.toString());
+    if (cep.toString().isNotEmpty) locationParts.add('CEP: ${cep.toString()}');
     final locationStr = locationParts.join(', ');
 
     return Material(
