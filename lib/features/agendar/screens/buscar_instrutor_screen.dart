@@ -521,11 +521,15 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
                       if (locationStr.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 14,
-                              color: AppColors.gray500,
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: AppColors.gray500,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
@@ -534,7 +538,7 @@ class _BuscarInstrutorScreenState extends State<BuscarInstrutorScreen> {
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: AppColors.gray600,
                                     ),
-                                overflow: TextOverflow.ellipsis,
+                                maxLines: 3,
                               ),
                             ),
                           ],
