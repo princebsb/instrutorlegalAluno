@@ -414,9 +414,9 @@ class _MensagensScreenState extends State<MensagensScreen> {
                 duration: const Duration(seconds: 4),
                 behavior: SnackBarBehavior.floating,
                 action: SnackBarAction(
-                  label: 'IR PARA AULAS',
+                  label: 'IR PARA PAGAMENTO',
                   textColor: Colors.white,
-                  onPressed: () => context.go(AppRoutes.minhasAulas),
+                  onPressed: () => context.go(AppRoutes.pagamentos),
                 ),
               ),
             );
