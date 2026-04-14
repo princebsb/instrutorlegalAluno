@@ -394,6 +394,35 @@ class _MensagensScreenState extends State<MensagensScreen> {
                   : AppColors.white,
       child: InkWell(
         onTap: () {
+          // Bloquear acesso se não pagou aula (exceto admin)
+          if (chatBloqueado) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.lock, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Pague uma aula com este instrutor para liberar o chat.',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange.shade700,
+                duration: const Duration(seconds: 4),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: 'IR PARA AULAS',
+                  textColor: Colors.white,
+                  onPressed: () => context.go(AppRoutes.minhasAulas),
+                ),
+              ),
+            );
+            return;
+          }
+
           context.push(
             '${AppRoutes.conversa}/${conversa['outro_usuario_id']}',
             extra: {
