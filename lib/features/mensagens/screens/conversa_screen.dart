@@ -147,8 +147,9 @@ class _ConversaScreenState extends State<ConversaScreen> {
     _messageController.clear();
 
     // Adicionar mensagem localmente
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     final tempMessage = {
-      'id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      'id': tempId,
       'remetente_id': user.id,
       'mensagem': text,
       'data_envio': DateTime.now().toIso8601String(),
@@ -174,6 +175,21 @@ class _ConversaScreenState extends State<ConversaScreen> {
       if (response != null && response is Map) {
         final censurada = response['censurada'] == true;
         final alerta = response['alerta'];
+        final mensagemRetornada = response['mensagem'];
+
+        // Atualizar a mensagem com o texto censurado do servidor
+        if (mensagemRetornada != null && mounted) {
+          setState(() {
+            final index = _mensagens.indexWhere((m) => m['id'] == tempId);
+            if (index != -1) {
+              _mensagens[index] = {
+                ..._mensagens[index],
+                'id': mensagemRetornada['id'],
+                'mensagem': mensagemRetornada['mensagem'], // Texto censurado
+              };
+            }
+          });
+        }
 
         if (censurada && alerta != null && mounted) {
           final nivel = alerta['nivel'] ?? 0;
