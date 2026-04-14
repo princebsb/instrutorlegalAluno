@@ -441,7 +441,7 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
               ),
 
             // Botão Mensagem (se aula paga)
-            if (_aulaPaga(aula) && aula['instrutor_id'] != null)
+            if (_aulaPaga(aula) && aula['instrutor_usuario_id'] != null)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 16),
@@ -449,7 +449,7 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                   onPressed: () {
                     Navigator.pop(context); // Fecha o bottom sheet
                     context.push(
-                      '${AppRoutes.conversa}/${aula['instrutor_id']}',
+                      '${AppRoutes.conversa}/${aula['instrutor_usuario_id']}',
                       extra: {
                         'nomeContato': aula['instrutor_nome'] ?? 'Instrutor',
                         'banido': false,
@@ -1011,11 +1011,11 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
               ),
             ),
             // Botão de mensagem (se aula paga)
-            if (_aulaPaga(aula) && aula['instrutor_id'] != null)
+            if (_aulaPaga(aula) && aula['instrutor_usuario_id'] != null)
               IconButton(
                 onPressed: () {
                   context.push(
-                    '${AppRoutes.conversa}/${aula['instrutor_id']}',
+                    '${AppRoutes.conversa}/${aula['instrutor_usuario_id']}',
                     extra: {
                       'nomeContato': aula['instrutor_nome'] ?? 'Instrutor',
                       'banido': false,
