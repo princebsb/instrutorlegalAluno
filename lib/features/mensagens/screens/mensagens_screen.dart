@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -26,11 +27,13 @@ class _MensagensScreenState extends State<MensagensScreen> {
   List<Map<String, dynamic>> _conversas = [];
   List<Map<String, dynamic>> _conversasFiltradas = [];
   bool _isLoading = true;
+  bool _showRulesModal = false;
   Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
+    _checkRulesModal();
     _loadConversas();
     _startPolling();
   }
@@ -40,6 +43,22 @@ class _MensagensScreenState extends State<MensagensScreen> {
     _searchController.dispose();
     _pollingTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkRulesModal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenRules = prefs.getBool('aluno_viu_regras_mensagens') ?? false;
+    if (!hasSeenRules && mounted) {
+      setState(() => _showRulesModal = true);
+    }
+  }
+
+  Future<void> _acceptRules() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('aluno_viu_regras_mensagens', true);
+    if (mounted) {
+      setState(() => _showRulesModal = false);
+    }
   }
 
   void _startPolling() {
@@ -70,33 +89,8 @@ class _MensagensScreenState extends State<MensagensScreen> {
       // Mock data
       if (!silent) {
         setState(() {
-          _conversas = [
-            {
-              'outro_usuario_id': '1',
-              'outro_usuario_nome': 'João Silva',
-              'outro_usuario_tipo': 'instrutor',
-              'ultima_mensagem': 'Perfeito! Te vejo amanhã às 9h então.',
-              'ultima_mensagem_data': DateTime.now().subtract(const Duration(minutes: 5)).toIso8601String(),
-              'nao_lidas': 2,
-            },
-            {
-              'outro_usuario_id': '2',
-              'outro_usuario_nome': 'Maria Santos',
-              'outro_usuario_tipo': 'instrutor',
-              'ultima_mensagem': 'Bom dia! Como posso ajudar?',
-              'ultima_mensagem_data': DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
-              'nao_lidas': 0,
-            },
-            {
-              'outro_usuario_id': '3',
-              'outro_usuario_nome': 'Suporte Instrutor Legal',
-              'outro_usuario_tipo': 'admin',
-              'ultima_mensagem': 'Olá! Bem-vindo ao Instrutor Legal!',
-              'ultima_mensagem_data': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
-              'nao_lidas': 1,
-            },
-          ];
-          _conversasFiltradas = _conversas;
+          _conversas = [];
+          _conversasFiltradas = [];
         });
       }
     } finally {
@@ -126,77 +120,316 @@ class _MensagensScreenState extends State<MensagensScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Text('Mensagens'),
-            if (_totalNaoLidas > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _totalNaoLidas.toString(),
-                  style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: Row(
+              children: [
+                const Text('Mensagens'),
+                if (_totalNaoLidas > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _totalNaoLidas.toString(),
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                ],
+              ],
+            ),
+            backgroundColor: AppColors.white,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+          ),
+          body: Column(
+            children: [
+              // Search
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: AppColors.white,
+                child: CustomTextField(
+                  controller: _searchController,
+                  hint: 'Buscar conversa...',
+                  prefixIcon: const Icon(Icons.search),
+                  onChanged: _filterConversas,
                 ),
               ),
-            ],
-          ],
-        ),
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      body: Column(
-        children: [
-          // Search
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.white,
-            child: CustomTextField(
-              controller: _searchController,
-              hint: 'Buscar conversa...',
-              prefixIcon: const Icon(Icons.search),
-              onChanged: _filterConversas,
-            ),
-          ),
 
-          // Lista
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _conversasFiltradas.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _loadConversas,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: _conversasFiltradas.length,
-                          separatorBuilder: (_, __) => const Divider(
-                            height: 1,
-                            indent: 88,
+              // Lista
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _conversasFiltradas.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _loadConversas,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: _conversasFiltradas.length,
+                              separatorBuilder: (_, __) => const Divider(
+                                height: 1,
+                                indent: 88,
+                              ),
+                              itemBuilder: (context, index) {
+                                return _buildConversaItem(_conversasFiltradas[index]);
+                              },
+                            ),
                           ),
-                          itemBuilder: (context, index) {
-                            return _buildConversaItem(_conversasFiltradas[index]);
-                          },
+              ),
+            ],
+          ),
+          bottomNavigationBar: BottomNavBar(
+            currentIndex: 3,
+            unreadMessages: _totalNaoLidas,
+          ),
+        ),
+        // Modal de Regras
+        if (_showRulesModal) _buildRulesModal(),
+      ],
+    );
+  }
+
+  Widget _buildRulesModal() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 400),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, Color(0xFF008f4a)],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.shield, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Regras do Chat',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Leia com atenção antes de continuar',
+                              style: TextStyle(color: Colors.white70, fontSize: 13),
+                            ),
+                          ],
                         ),
                       ),
+                    ],
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Regra Principal
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade200),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.warning_amber, color: Colors.red.shade600, size: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Proibido compartilhar contatos',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '• Telefone ou WhatsApp\n• E-mail\n• Redes sociais\n• Qualquer contato externo',
+                                    style: TextStyle(color: Colors.red.shade600, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Por quê?
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          border: Border.all(color: Colors.blue.shade200),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Por que essa regra existe?',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'A plataforma garante a segurança de todas as transações. Mantendo tudo dentro da plataforma, protegemos você contra fraudes.',
+                              style: TextStyle(color: Colors.blue.shade600, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Consequências
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          border: Border.all(color: Colors.amber.shade200),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'O que acontece se violar?',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildWarningStep(1, '1ª violação:', 'Aviso de advertência', Colors.amber),
+                            const SizedBox(height: 8),
+                            _buildWarningStep(2, '2ª violação:', 'Último aviso', Colors.orange),
+                            const SizedBox(height: 8),
+                            _buildWarningStep(3, '3ª violação:', 'Banimento permanente', Colors.red),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Text(
+                        'As mensagens são monitoradas automaticamente.',
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Botão
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _acceptRules,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Entendi e aceito as regras',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 3,
-        unreadMessages: _totalNaoLidas,
-      ),
+    );
+  }
+
+  Widget _buildWarningStep(int step, String title, String description, MaterialColor color) {
+    return Row(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: color.shade200,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              step.toString(),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: color.shade800,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color.shade700, fontSize: 13)),
+        const SizedBox(width: 4),
+        Text(description, style: TextStyle(color: color.shade700, fontSize: 13)),
+      ],
     );
   }
 
@@ -237,17 +470,30 @@ class _MensagensScreenState extends State<MensagensScreen> {
     final ultimaMensagem = conversa['ultima_mensagem'] ?? '';
     final dataStr = conversa['ultima_mensagem_data'];
     final naoLidas = int.tryParse(conversa['nao_lidas']?.toString() ?? '0') ?? 0;
+    final banido = conversa['banido'] == true;
+    final temAulaPaga = conversa['temAulaPaga'] == true;
+    final chatBloqueado = !temAulaPaga && tipo != 'admin';
 
     final data = dataStr != null ? DateTime.tryParse(dataStr) : null;
     final timeAgo = data != null ? _formatTimeAgo(data) : '';
 
     return Material(
-      color: naoLidas > 0 ? AppColors.primarySurface.withOpacity(0.3) : AppColors.white,
+      color: banido
+          ? Colors.red.shade50
+          : chatBloqueado
+              ? Colors.orange.shade50
+              : naoLidas > 0
+                  ? AppColors.primarySurface.withOpacity(0.3)
+                  : AppColors.white,
       child: InkWell(
         onTap: () {
           context.push(
             '${AppRoutes.conversa}/${conversa['outro_usuario_id']}',
-            extra: {'nomeContato': nome},
+            extra: {
+              'nomeContato': nome,
+              'banido': banido,
+              'temAulaPaga': temAulaPaga,
+            },
           );
         },
         child: Padding(
@@ -255,31 +501,73 @@ class _MensagensScreenState extends State<MensagensScreen> {
           child: Row(
             children: [
               // Avatar
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: tipo == 'admin'
-                      ? AppColors.primarySurface
-                      : AppColors.gray100,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: tipo == 'admin'
-                      ? const Icon(
-                          Icons.support_agent,
-                          color: AppColors.primary,
-                          size: 28,
-                        )
-                      : Text(
-                          nome[0].toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.gray600,
-                          ),
+              Stack(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: banido
+                          ? Colors.red
+                          : chatBloqueado
+                              ? Colors.orange
+                              : tipo == 'admin'
+                                  ? AppColors.primarySurface
+                                  : AppColors.gray100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: tipo == 'admin'
+                          ? const Icon(
+                              Icons.support_agent,
+                              color: AppColors.primary,
+                              size: 28,
+                            )
+                          : Text(
+                              nome[0].toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: (banido || chatBloqueado) ? Colors.white : AppColors.gray600,
+                              ),
+                            ),
+                    ),
+                  ),
+                  if (banido)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade700,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
-                ),
+                        child: const Center(
+                          child: Icon(Icons.block, color: Colors.white, size: 12),
+                        ),
+                      ),
+                    ),
+                  if (chatBloqueado && !banido)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade700,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.lock, color: Colors.white, size: 10),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 16),
               // Content
@@ -290,26 +578,63 @@ class _MensagensScreenState extends State<MensagensScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            nome,
-                            style: TextStyle(
-                              fontWeight: naoLidas > 0
-                                  ? FontWeight.bold
-                                  : FontWeight.w600,
-                              fontSize: 16,
-                            ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  nome,
+                                  style: TextStyle(
+                                    fontWeight: naoLidas > 0 ? FontWeight.bold : FontWeight.w600,
+                                    fontSize: 16,
+                                    color: banido ? Colors.red.shade700 : null,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (banido) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade100,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'BANIDO',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ] else if (chatBloqueado) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'PAGUE PARA CONVERSAR',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         Text(
                           timeAgo,
                           style: TextStyle(
                             fontSize: 12,
-                            color: naoLidas > 0
-                                ? AppColors.primary
-                                : AppColors.gray500,
-                            fontWeight: naoLidas > 0
-                                ? FontWeight.w600
-                                : FontWeight.normal,
+                            color: naoLidas > 0 ? AppColors.primary : AppColors.gray500,
+                            fontWeight: naoLidas > 0 ? FontWeight.w600 : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -319,20 +644,26 @@ class _MensagensScreenState extends State<MensagensScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            ultimaMensagem,
+                            banido
+                                ? 'Este instrutor foi banido por violar as regras'
+                                : chatBloqueado
+                                    ? 'Pague a aula para liberar o chat'
+                                    : ultimaMensagem,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: naoLidas > 0
-                                  ? AppColors.textPrimary
-                                  : AppColors.textSecondary,
-                              fontWeight: naoLidas > 0
-                                  ? FontWeight.w500
-                                  : FontWeight.normal,
+                              color: banido
+                                  ? Colors.red.shade400
+                                  : chatBloqueado
+                                      ? Colors.orange.shade600
+                                      : naoLidas > 0
+                                          ? AppColors.textPrimary
+                                          : AppColors.textSecondary,
+                              fontWeight: naoLidas > 0 ? FontWeight.w500 : FontWeight.normal,
                             ),
                           ),
                         ),
-                        if (naoLidas > 0) ...[
+                        if (naoLidas > 0 && !banido && !chatBloqueado) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
