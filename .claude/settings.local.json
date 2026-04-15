@@ -15,7 +15,32 @@
       "Bash(git commit:*)",
       "Bash(ls -la \"D:\\\\LEO\\\\flutter\\\\aluno_app\\\\ios\"\" 2>/dev/null || dir \"D:LEOflutteraluno_appios \")",
       "Bash(dir:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(D:downloads11-11-2025flutter_windows_3.38.3-stableflutterbinflutter clean)",
+      "Bash(cmd.exe /c \"cd /d D:\\\\LEO\\\\flutter\\\\aluno_app && D:\\\\downloads11-11-2025\\\\flutter_windows_3.38.3-stable\\\\flutter\\\\bin\\\\flutter.bat clean\")",
+      "Bash(cmd.exe /c \"cd /d D:\\\\LEO\\\\flutter\\\\aluno_app && D:\\\\downloads11-11-2025\\\\flutter_windows_3.38.3-stable\\\\flutter\\\\bin\\\\flutter.bat pub get\")",
+      "Bash(cmd.exe /c \"D:\\\\downloads11-11-2025\\\\flutter_windows_3.38.3-stable\\\\flutter\\\\bin\\\\flutter.bat clean\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pub.dev)",
+      "Bash(cd:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(git fsck:*)",
+      "Bash(flutter pub deps:*)",
+      "Bash(cmd /c \"flutter pub deps\")",
+      "Bash(cmd /c \"dir D:\\\\LEO\\\\flutter\\\\aluno_app\\\\build\\\\app\\\\outputs\\\\bundle\\\\release\\\\app-release.aab\")",
+      "Bash(cmd /c \"cd /d D:\\\\LEO\\\\flutter\\\\aluno_app\\\\build\\\\app\\\\outputs\\\\bundle\\\\release && copy app-release.aab app-release.zip && tar -xf app-release.zip base/manifest/AndroidManifest.xml 2>nul && type base\\\\manifest\\\\AndroidManifest.xml\")",
+      "Bash(powershell -Command \"Expand-Archive -Path ''D:\\\\LEO\\\\flutter\\\\aluno_app\\\\build\\\\app\\\\outputs\\\\bundle\\\\release\\\\app-release.aab'' -DestinationPath ''D:\\\\LEO\\\\flutter\\\\aluno_app\\\\build\\\\aab_extracted'' -Force; Get-Content ''D:\\\\LEO\\\\flutter\\\\aluno_app\\\\build\\\\aab_extracted\\\\base\\\\manifest\\\\AndroidManifest.xml'' -Raw\")",
+      "Bash(powershell:*)",
+      "Bash(cmd /c:*)",
+      "Bash(\"D:/downloads11-11-2025/flutter_windows_3.38.3-stable/flutter/bin/flutter.bat\" build appbundle --release)",
+      "Bash(\"D:/downloads11-11-2025/flutter_windows_3.38.3-stable/flutter/bin/flutter.bat\" clean)",
+      "Bash(\"D:/downloads11-11-2025/flutter_windows_3.38.3-stable/flutter/bin/flutter.bat\" pub run flutter_launcher_icons)",
+      "Bash(\"D:/downloads11-11-2025/flutter_windows_3.38.3-stable/flutter/bin/flutter.bat\" pub get)",
+      "Bash(ls:*)",
+      "Bash(git status:*)"
     ]
   }
 }
