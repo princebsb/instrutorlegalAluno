@@ -290,48 +290,66 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
         return;
       }
 
-      // Obtém a posição atual
+      // Obtém a posição atual com alta precisão e timeout
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 30),
       );
+
+      // Coordenadas exatas
+      final lat = position.latitude;
+      final lng = position.longitude;
+      final accuracy = position.accuracy;
 
       // Converte coordenadas em endereço
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+      String endereco = '';
+      try {
+        final placemarks = await placemarkFromCoordinates(lat, lng);
 
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        final parts = <String>[];
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          final parts = <String>[];
 
-        if (place.street != null && place.street!.isNotEmpty) {
-          parts.add(place.street!);
-        }
-        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-          parts.add(place.subLocality!);
-        }
-        if (place.locality != null && place.locality!.isNotEmpty) {
-          parts.add(place.locality!);
-        }
-        if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-          parts.add(place.administrativeArea!);
-        }
+          if (place.street != null && place.street!.isNotEmpty) {
+            parts.add(place.street!);
+          }
+          if (place.subThoroughfare != null && place.subThoroughfare!.isNotEmpty) {
+            // Número do endereço
+            parts.add('nº ${place.subThoroughfare}');
+          }
+          if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+            parts.add(place.subLocality!);
+          }
+          if (place.locality != null && place.locality!.isNotEmpty) {
+            parts.add(place.locality!);
+          }
+          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+            parts.add(place.administrativeArea!);
+          }
 
-        final endereco = parts.join(', ');
-
-        setState(() {
-          _localController.text = endereco;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Localização obtida com sucesso!'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          endereco = parts.join(', ');
         }
+      } catch (e) {
+        debugPrint('[AGENDAR] Erro no geocoding reverso: $e');
+      }
+
+      // Adiciona coordenadas exatas ao final
+      final coordenadas = '📍 ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
+      final enderecoCompleto = endereco.isNotEmpty
+          ? '$endereco\n$coordenadas'
+          : coordenadas;
+
+      setState(() {
+        _localController.text = enderecoCompleto;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Localização obtida! Precisão: ${accuracy.toStringAsFixed(0)}m'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('[AGENDAR] Erro ao obter localização: $e');
