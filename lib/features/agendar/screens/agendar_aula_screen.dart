@@ -243,6 +243,64 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
     }
   }
 
+  void _usarMeuEndereco() {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Usuário não autenticado.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Monta o endereço completo a partir dos campos do usuário
+    final parts = <String>[];
+
+    if (user.endereco != null && user.endereco!.isNotEmpty) {
+      parts.add(user.endereco!);
+    }
+    if (user.numero != null && user.numero!.isNotEmpty) {
+      parts.add('nº ${user.numero}');
+    }
+    if (user.complemento != null && user.complemento!.isNotEmpty) {
+      parts.add(user.complemento!);
+    }
+    if (user.bairro != null && user.bairro!.isNotEmpty) {
+      parts.add(user.bairro!);
+    }
+    if (user.cidade != null && user.cidade!.isNotEmpty) {
+      parts.add(user.cidade!);
+    }
+    if (user.estado != null && user.estado!.isNotEmpty) {
+      parts.add(user.estado!);
+    }
+
+    if (parts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você não possui endereço cadastrado. Atualize seu perfil.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final enderecoCompleto = parts.join(', ');
+
+    setState(() {
+      _localController.text = enderecoCompleto;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Endereço preenchido!'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  }
+
   Future<void> _usarMinhaLocalizacao() async {
     setState(() => _isLoadingLocation = true);
 
@@ -458,24 +516,40 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
               maxLines: 2,
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isLoadingLocation ? null : _usarMinhaLocalizacao,
-                icon: _isLoadingLocation
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.my_location, size: 18),
-                label: Text(_isLoadingLocation ? 'Obtendo localização...' : 'Usar minha localização'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoadingLocation ? null : _usarMinhaLocalizacao,
+                    icon: _isLoadingLocation
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location, size: 18),
+                    label: Text(_isLoadingLocation ? 'Obtendo...' : 'Usar localização'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _usarMeuEndereco,
+                    icon: const Icon(Icons.home_outlined, size: 18),
+                    label: const Text('Meu endereço'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.info,
+                      side: const BorderSide(color: AppColors.info),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 24),
