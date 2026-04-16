@@ -513,7 +513,7 @@ class _AgendarAulaScreenState extends State<AgendarAulaScreen> {
               controller: _localController,
               hint: 'Ex: Rua das Flores, 123 - Centro',
               prefixIcon: const Icon(Icons.location_on_outlined),
-              maxLines: 2,
+              maxLines: 4,
             ),
             const SizedBox(height: 8),
             Row(
