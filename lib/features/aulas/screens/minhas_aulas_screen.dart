@@ -429,7 +429,7 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
               _buildDetalheItem(
                 icon: Icons.location_on,
                 label: 'Local de partida',
-                value: _aulaPaga(aula) ? aula['local_partida'].toString() : 'Endereço liberado após pagamento',
+                value: aula['local_partida'].toString(),
               ),
 
             // Valor
@@ -929,7 +929,7 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            _aulaPaga(aula) ? local : 'Endereço liberado após pagamento',
+                            local,
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,

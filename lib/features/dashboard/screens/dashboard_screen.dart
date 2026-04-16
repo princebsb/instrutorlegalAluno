@@ -458,7 +458,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               _buildDetalheItem(
                 icon: Icons.location_on,
                 label: 'Local de partida',
-                value: _aulaPaga(aula) ? aula['local_partida'].toString() : 'Endereço liberado após pagamento',
+                value: aula['local_partida'].toString(),
               ),
 
             // Valor
@@ -1227,7 +1227,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        _aulaPaga(aula) ? (aula['local_partida'] ?? 'Local a definir') : 'Endereço liberado após pagamento',
+                        aula['local_partida'] ?? 'Local a definir',
                         style: Theme.of(context).textTheme.bodySmall,
                         overflow: TextOverflow.ellipsis,
                       ),
