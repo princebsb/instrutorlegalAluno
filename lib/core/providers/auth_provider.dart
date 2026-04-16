@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
+import '../constants/app_constants.dart';
 
 enum AuthStatus {
   initial,
@@ -37,6 +39,9 @@ class AuthProvider extends ChangeNotifier {
       if (isLoggedIn) {
         _user = _authService.currentUser;
         _status = AuthStatus.authenticated;
+
+        // Registrar token FCM para receber notificações push
+        _registerFCMToken();
       } else {
         _status = AuthStatus.unauthenticated;
       }
@@ -55,6 +60,10 @@ class AuthProvider extends ChangeNotifier {
       _user = await _authService.login(email, senha);
       _status = AuthStatus.authenticated;
       notifyListeners();
+
+      // Registrar token FCM para receber notificações push
+      _registerFCMToken();
+
       return true;
     } on ApiException catch (e) {
       _error = e.message;
@@ -66,6 +75,27 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.error;
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<void> _registerFCMToken() async {
+    try {
+      final token = await NotificationService.getToken();
+      if (token != null && _user != null) {
+        final api = ApiService();
+        await api.post(
+          ApiEndpoints.fcmRegister,
+          body: {
+            'usuario_id': _user!.id,
+            'token': token,
+            'platform': 'android',
+          },
+        );
+        debugPrint('✅ Token FCM registrado no backend');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erro ao registrar token FCM: $e');
+      // Não falhar o login se não conseguir registrar o token
     }
   }
 
@@ -110,6 +140,10 @@ class AuthProvider extends ChangeNotifier {
       );
       _status = AuthStatus.authenticated;
       notifyListeners();
+
+      // Registrar token FCM para receber notificações push
+      _registerFCMToken();
+
       return true;
     } on ApiException catch (e) {
       _error = e.message;

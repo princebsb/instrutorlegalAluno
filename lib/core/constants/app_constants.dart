@@ -85,4 +85,8 @@ class ApiEndpoints {
   // Confirmação e Disputa de Aula
   static String confirmarAulaRealizada(String aulaId) => '/aulas/$aulaId/confirmar-realizada';
   static String abrirDisputa(String aulaId) => '/aulas/$aulaId/abrir-disputa';
+
+  // FCM Token
+  static const String fcmRegister = '/fcm/register';
+  static const String fcmUnregister = '/fcm/unregister';
 }
