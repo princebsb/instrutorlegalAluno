@@ -77,8 +77,14 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
   }
 
   Future<void> _confirmarAulaRealizada(Map<String, dynamic> aula) async {
+    debugPrint('=== CONFIRMAR AULA ===');
+    debugPrint('Aula ID: ${aula['id']}');
+    debugPrint('Aula pago: ${aula['pago']}');
+    debugPrint('Aula completa: $aula');
+
     // Verificar se a aula está paga
     if (!_aulaPaga(aula)) {
+      debugPrint('Aula não está paga!');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Você precisa pagar a aula antes de confirmar.'),
@@ -88,9 +94,10 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
       return;
     }
 
+    debugPrint('Abrindo diálogo de confirmação...');
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Confirmar Aula'),
         content: const Text(
           'Você confirma que esta aula foi realizada?\n\n'
@@ -98,11 +105,11 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
             ),
@@ -112,12 +119,16 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
       ),
     );
 
+    debugPrint('Resultado do diálogo: $confirmar');
+
     if (confirmar == true) {
       try {
-        await _api.post(
-          ApiEndpoints.confirmarAulaRealizada(aula['id'].toString()),
-          body: {},
-        );
+        debugPrint('Chamando API para confirmar aula ${aula['id']}...');
+        final endpoint = ApiEndpoints.confirmarAulaRealizada(aula['id'].toString());
+        debugPrint('Endpoint: $endpoint');
+
+        final response = await _api.post(endpoint, body: {});
+        debugPrint('Resposta API: $response');
 
         if (mounted) {
           Navigator.pop(context); // Fecha o bottom sheet
@@ -130,6 +141,7 @@ class _MinhasAulasScreenState extends State<MinhasAulasScreen>
           _loadAulas(); // Recarrega os dados
         }
       } catch (e) {
+        debugPrint('ERRO ao confirmar aula: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

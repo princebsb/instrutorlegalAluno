@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_router.dart';
@@ -14,13 +15,20 @@ import 'core/services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicializar Firebase
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('⚠️ Firebase não inicializado: $e');
+  }
+
   // Inicializar formatação de datas para pt_BR
   await initializeDateFormatting('pt_BR', null);
 
   // Inicializar Hive para armazenamento local
   await Hive.initFlutter();
 
-  // Inicializar notificações locais
+  // Inicializar notificações locais e FCM
   try {
     await NotificationService.initialize();
   } catch (e) {

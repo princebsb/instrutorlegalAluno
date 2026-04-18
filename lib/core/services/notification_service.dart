@@ -1,9 +1,14 @@
 import 'dart:ui' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
 
   static Future<void> initialize() async {
     // Configuração Android
@@ -39,6 +44,44 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
+
+    // Configurar Firebase Messaging
+    await _setupFirebaseMessaging();
+  }
+
+  static Future<void> _setupFirebaseMessaging() async {
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true, badge: true, sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      String? token = await _firebaseMessaging.getToken();
+      print('FCM Token: $token');
+
+      _firebaseMessaging.onTokenRefresh.listen((newToken) {
+        print('FCM Token atualizado: $newToken');
+      });
+    }
+
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+  }
+
+  static void _handleForegroundMessage(RemoteMessage message) {
+    RemoteNotification? notification = message.notification;
+    AndroidNotification? android = message.notification?.android;
+
+    if (notification != null && android != null) {
+      showNotification(
+        title: notification.title ?? 'Instrutor Legal',
+        body: notification.body ?? '',
+        payload: message.data.toString(),
+      );
+    }
+  }
+
+  static void _handleMessageOpenedApp(RemoteMessage message) {
+    print('Mensagem aberta: ${message.data}');
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
@@ -107,14 +150,12 @@ class NotificationService {
   }
 
   static Future<bool> requestPermission() async {
-    final androidPlugin = _notifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin != null) {
-      final granted = await androidPlugin.requestNotificationsPermission();
-      return granted ?? false;
-    }
-    return true;
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  static Future<String?> getToken() async {
+    return await _firebaseMessaging.getToken();
   }
 
   static Future<void> cancelAll() async {
